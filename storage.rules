@@ -23,9 +23,8 @@ service firebase.storage {
     // Match versioned localization bundle objects
     // Environment isolation is enforced by using dedicated project buckets
     match /localization/locales/{locale}/{version}/{filename} {
-      // Authenticated clients may read verified bundles
-      allow read: if isAuthenticated() &&
-                     isValidLocale(locale) &&
+      // Clients may read verified bundles
+      allow read: if isValidLocale(locale) &&
                      isValidVersion(version) &&
                      filename == 'bundle.json';
       

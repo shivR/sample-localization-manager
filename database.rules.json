@@ -1,7 +1,7 @@
 {
   "rules": {
     "localization": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)",
       ".validate": "newData.hasChildren(['schema_version', 'environment', 'default_locale', 'updated_at', 'source_catalog_sha256', 'locales'])",
       "schema_version": {
