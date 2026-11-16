@@ -57,7 +57,7 @@ def rollback_locale(
         target_bytes = f.read()
 
     target_bundle = json.loads(target_bytes.decode("utf-8"))
-    verified_checksum = target_bundle.get("bundle_checksum")
+    verified_checksum = compute_sha256(target_bytes)
     payload_hash = target_bundle.get("payload_hash")
     cov = target_bundle.get("translation_coverage", {})
 

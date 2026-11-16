@@ -95,7 +95,7 @@ def publish_locale(
     print("--- Steps 2-6: Compiling bundle, schema validation, placeholder & checksum calculations ---")
     bundle = compile_bundle(locale, version, environment, actor)
     bundle_bytes = json.dumps(bundle, indent=2, ensure_ascii=False).encode("utf-8")
-    bundle_checksum = bundle["bundle_checksum"]
+    bundle_checksum = compute_sha256(bundle_bytes)
     payload_hash = bundle["payload_hash"]
     cov = bundle["translation_coverage"]
     
@@ -136,8 +136,7 @@ def publish_locale(
         
     with open(local_target_file, "rb") as f:
         read_back_bytes = f.read()
-    read_back_bundle = json.loads(read_back_bytes.decode("utf-8"))
-    read_back_checksum = read_back_bundle.get("bundle_checksum")
+    read_back_checksum = compute_sha256(read_back_bytes)
     
     if read_back_checksum != bundle_checksum:
         if os.path.exists(local_target_file):

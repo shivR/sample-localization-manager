@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
-  "release_id": "rel-development-en-1.0.0-20261116093327",
+  "release_id": "rel-development-en-1.0.0-20261116111730",
   "environment": "development",
   "locale": "en",
   "version": "1.0.0",
   "bundle_path": "localization/locales/en/1.0.0/bundle.json",
-  "bundle_checksum": "85b1cd16c85154b3942373671d443624e406bc0cc4a6babd21b4f76b858e5090",
+  "bundle_checksum": "f453a0ad3299f1ce32343762f2fce5f4d683d7e6e7f1645f2275c076ad39752e",
   "payload_hash": "d6c0b8c3c210eedc3eaf0fd6c0d8f75f85cf4118831d8891b8539ddd4aaff66a",
   "source_catalog_version": "1.0.0",
   "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
@@ -16,14 +16,14 @@
     "coverage_percent": 100.0,
     "is_complete": true
   },
-  "created_at": "2026-11-16T09:33:27Z",
-  "published_at": "2026-11-16T09:33:27Z",
+  "created_at": "2026-11-16T11:17:30Z",
+  "published_at": "2026-11-16T11:17:30Z",
   "publisher": {
     "id": "sample_publisher",
     "role": "ci_publisher"
   },
   "verification": {
-    "verified_at": "2026-11-16T09:33:27Z",
+    "verified_at": "2026-11-16T11:17:30Z",
     "checksum_matched": true,
     "read_back_verified": true,
     "schema_valid": true,
