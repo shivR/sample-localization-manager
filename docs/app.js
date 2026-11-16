@@ -99,6 +99,23 @@ const INITIAL_TRANSLATIONS = {
   }
 };
 
+// Default Language Names
+const DEFAULT_LANGUAGE_NAMES = {
+  en: "English",
+  es: "Spanish",
+  th: "Thai",
+  fr: "French",
+  de: "German",
+  id: "Indonesian",
+  vi: "Vietnamese",
+  pl: "Polish",
+  ja: "Japanese",
+  it: "Italian",
+  pt: "Portuguese",
+  hi: "Hindi",
+  ar: "Arabic"
+};
+
 let currentLocale = "es";
 let currentFilter = "ALL";
 let stagingCSVRows = null;
@@ -106,43 +123,39 @@ let stagingCSVRows = null;
 // Initialize app from localStorage or default
 let catalog = JSON.parse(localStorage.getItem("ethos_catalog") || "null") || INITIAL_CATALOG;
 let translations = JSON.parse(localStorage.getItem("ethos_translations") || "null") || INITIAL_TRANSLATIONS;
+let languageNames = JSON.parse(localStorage.getItem("ethos_language_names") || "null") || DEFAULT_LANGUAGE_NAMES;
 
 function saveState() {
   localStorage.setItem("ethos_catalog", JSON.stringify(catalog));
   localStorage.setItem("ethos_translations", JSON.stringify(translations));
+  localStorage.setItem("ethos_language_names", JSON.stringify(languageNames));
   updateStats();
 }
 
-function updateStats() {
-  const totalKeys = Object.keys(catalog).length;
-  const currentTrans = translations[currentLocale] || {};
-  let approved = 0;
-  let pending = 0;
-
-  for (const k of Object.keys(catalog)) {
-    const item = currentTrans[k];
-    if (item && item.status === "APPROVED" && item.text.trim()) {
-      approved++;
-    } else {
-      pending++;
-    }
-  }
-
-  const percent = totalKeys > 0 ? ((approved / totalKeys) * 100).toFixed(1) : 0;
-
-  document.getElementById("totalKeysCount").textContent = totalKeys;
-  document.getElementById("approvedKeysCount").textContent = approved;
-  document.getElementById("approvedPercent").textContent = `${percent}% Coverage`;
-  document.getElementById("pendingKeysCount").textContent = pending;
-
-  document.getElementById("tableLangHeader").textContent = currentLocale;
-  document.getElementById("deployLocaleTag").textContent = `${getLanguageName(currentLocale)} (${currentLocale})`;
-  document.getElementById("deployCoverageTag").textContent = `${approved} / ${totalKeys} (${percent}%)`;
+function getLanguageName(loc) {
+  return languageNames[loc] || loc.toUpperCase();
 }
 
-function getLanguageName(loc) {
-  const map = { en: "English", es: "Spanish", th: "Thai", fr: "French", de: "German", id: "Indonesian", vi: "Vietnamese", pl: "Polish" };
-  return map[loc] || loc.toUpperCase();
+function syncLocaleDropdown() {
+  const select = document.getElementById("localeSelect");
+  if (!select) return;
+
+  const existingLocales = Object.keys(translations);
+  // Ensure standard locales are always available
+  ["en", "es", "th", "fr"].forEach(l => {
+    if (!existingLocales.includes(l)) existingLocales.push(l);
+  });
+
+  select.innerHTML = "";
+  existingLocales.forEach(loc => {
+    const opt = document.createElement("option");
+    opt.value = loc;
+    opt.className = "bg-slate-900";
+    const name = getLanguageName(loc);
+    opt.textContent = loc === "en" ? `${name} (en) [Source]` : `${name} (${loc})`;
+    if (loc === currentLocale) opt.selected = true;
+    select.appendChild(opt);
+  });
 }
 
 function switchLocale(loc) {
@@ -219,7 +232,7 @@ function renderTable() {
         <textarea oninput="handleTextChange('${key}', this.value)" rows="2" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">${escapeHtml(transItem.text)}</textarea>
       </td>
       <td class="py-3 px-3 align-top text-center">
-        <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}">${badgeLabel}</span>
+        <span id="badge-${key}" class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}">${badgeLabel}</span>
       </td>
       <td class="py-3 px-4 align-top text-right space-x-1 whitespace-nowrap">
         <button onclick="approveKey('${key}')" title="Approve" class="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded border border-emerald-200 transition">
@@ -238,6 +251,24 @@ function renderTable() {
 function escapeHtml(text) {
   if (!text) return "";
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function filterTable() {
+  renderTable();
+}
+
+function updateRowBadge(key, status) {
+  const badge = document.getElementById(`badge-${key}`);
+  if (badge) {
+    let badgeClass = "badge-pending";
+    if (status === "APPROVED") badgeClass = "badge-approved";
+    else if (status === "AI_GENERATED") badgeClass = "badge-ai";
+    else if (status === "IMPORTED_DRAFT") badgeClass = "badge-imported";
+    else if (status === "REJECTED") badgeClass = "badge-rejected";
+
+    badge.className = `inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`;
+    badge.textContent = status === "AI_GENERATED" ? "AI DRAFT" : (status === "IMPORTED_DRAFT" ? "MODIFIED" : status);
+  }
 }
 
 function handleTextChange(key, newText) {
@@ -317,15 +348,45 @@ function mockGeminiTranslate(source, loc) {
   if (loc === "es") {
     if (source.includes("activities completed")) return "{completed} de {total} actividades completadas";
     if (source.includes("Welcome")) return "Bienvenido al Estudio de Investigación EthOS";
+    if (source.includes("Dynamic Localization")) return "Localización Dinámica EthOS";
     return `[ES] ${source}`;
   } else if (loc === "th") {
     if (source.includes("activities completed")) return "เสร็จสิ้น {completed} จาก {total} กิจกรรม";
+    if (source.includes("Welcome")) return "ยินดีต้อนรับสู่การศึกษาวิจัย EthOS";
     return `[TH] ${source}`;
   } else if (loc === "fr") {
     if (source.includes("activities completed")) return "{completed} sur {total} activités terminées";
+    if (source.includes("Welcome")) return "Bienvenue dans l'étude de recherche EthOS";
     return `[FR] ${source}`;
+  } else if (loc === "de") {
+    if (source.includes("activities completed")) return "{completed} von {total} Aktivitäten abgeschlossen";
+    if (source.includes("Welcome")) return "Willkommen zur EthOS-Forschungsstudie";
+    if (source.includes("Dynamic Localization")) return "Dynamische EthOS-Lokalisierung";
+    return `[DE] ${source}`;
+  } else if (loc === "it") {
+    if (source.includes("activities completed")) return "{completed} di {total} attività completate";
+    if (source.includes("Welcome")) return "Benvenuto nello studio di ricerca EthOS";
+    return `[IT] ${source}`;
+  } else if (loc === "ja") {
+    if (source.includes("activities completed")) return "{completed} / {total} のアクティビティが完了しました";
+    if (source.includes("Welcome")) return "EthOS 調査研究へようこそ";
+    return `[JA] ${source}`;
+  } else if (loc === "pt") {
+    if (source.includes("activities completed")) return "{completed} de {total} atividades concluídas";
+    if (source.includes("Welcome")) return "Bem-vindo ao Estudo de Pesquisa EthOS";
+    return `[PT] ${source}`;
   }
-  return `[${loc.toUpperCase()}] ${source}`;
+
+  // Generic fallback preserving brand and placeholders
+  let translated = `[${loc.toUpperCase()}] ${source}`;
+  // Ensure placeholders are kept intact
+  const placeholders = source.match(/\{([a-zA-Z0-9_]+)\}/g);
+  if (placeholders) {
+    placeholders.forEach(ph => {
+      // placeholders are kept intact in `translated`
+    });
+  }
+  return translated;
 }
 
 // CSV Export
@@ -459,6 +520,62 @@ function applyImportedTranslations(importedMap) {
   alert(`Successfully imported ${count} translations from CSV!`);
 }
 
+// Add New Language
+function openNewLanguageModal() {
+  document.getElementById("newLangName").value = "";
+  document.getElementById("newLangCode").value = "";
+  document.getElementById("autoTranslateNewLang").checked = true;
+  document.getElementById("newLanguageModal").classList.remove("hidden");
+  document.getElementById("newLangName").focus();
+}
+
+function closeNewLanguageModal() {
+  document.getElementById("newLanguageModal").classList.add("hidden");
+}
+
+function handleCreateNewLanguage(event) {
+  event.preventDefault();
+  const name = document.getElementById("newLangName").value.trim();
+  const code = document.getElementById("newLangCode").value.toLowerCase().trim();
+  const autoTranslate = document.getElementById("autoTranslateNewLang").checked;
+
+  if (!code || !name) return;
+
+  if (translations[code] && Object.keys(translations[code]).length > 0) {
+    alert(`Locale '${code}' (${name}) already exists!`);
+    return;
+  }
+
+  languageNames[code] = name;
+  translations[code] = {};
+
+  const keys = Object.keys(catalog);
+  for (const k of keys) {
+    const item = catalog[k];
+    if (autoTranslate) {
+      translations[code][k] = {
+        text: mockGeminiTranslate(item.source, code),
+        status: "AI_GENERATED",
+        type: "GEMINI_2.5_FLASH"
+      };
+    } else {
+      translations[code][k] = {
+        text: "",
+        status: "NOT_TRANSLATED"
+      };
+    }
+  }
+
+  currentLocale = code;
+  saveState();
+  syncLocaleDropdown();
+  closeNewLanguageModal();
+  updateStats();
+  renderTable();
+
+  alert(`🎉 Created new language '${name} (${code})' with ${keys.length} strings!\n${autoTranslate ? 'AI DRAFT translations generated with Gemini.' : 'Initialized as empty for CSV import.'}`);
+}
+
 // Add New String
 function openAddKeyModal() {
   document.getElementById("addKeyModal").classList.remove("hidden");
@@ -515,6 +632,7 @@ function executeDeploy() {
 
 // Initialize on Load
 document.addEventListener("DOMContentLoaded", () => {
+  syncLocaleDropdown();
   updateStats();
   renderTable();
 });
