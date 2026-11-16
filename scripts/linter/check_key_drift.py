@@ -14,6 +14,8 @@ import difflib
 import subprocess
 import argparse
 import urllib.request
+import urllib.error
+from datetime import datetime, timezone
 
 WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CATALOG_PATH = os.path.join(WORKSPACE_DIR, "catalog", "master-catalog.json")
@@ -49,9 +51,11 @@ def get_git_diff_added_lines(diff_range: str = "origin/main...HEAD") -> list:
             text=True,
             check=False
         )
-        return res2.stdout.splitlines() if res2.returncode == 0 else []
+        if res2.returncode == 0 and res2.stdout:
+            return res2.stdout.splitlines()
+        return []
     except Exception as e:
-        print(f"[WARN] Failed to read git diff: {e}", file=sys.stderr)
+        print(f"  [WARN] git diff extraction failed: {e}", file=sys.stderr)
         return []
 
 def extract_added_keys_ios(diff_lines: list) -> set:
@@ -118,25 +122,42 @@ def extract_added_keys_android(diff_lines: list) -> set:
 
 def find_closest_matches(key: str, catalog_keys_dict: dict, n: int = 3) -> list:
     results = []
-    # Match against catalog key names
-    close_keys = difflib.get_close_matches(key, catalog_keys_dict.keys(), n=n, cutoff=0.25)
-    for ck in close_keys:
-        results.append(f"`{ck}`")
-
-    # Match against English source texts
+    # 1. Match against English source texts (if raw English text was passed)
     source_matches = []
     for ck, data in catalog_keys_dict.items():
         src = data.get("source_text", "")
         ratio = difflib.SequenceMatcher(None, key.lower(), src.lower()).ratio()
-        if ratio >= 0.35:
+        if ratio >= 0.50:
             source_matches.append((ratio, ck, src))
     source_matches.sort(key=lambda x: x[0], reverse=True)
     for _, ck, src in source_matches[:2]:
-        formatted = f"`{ck}` (Source: \"{src}\")"
-        if f"`{ck}`" not in results and formatted not in results:
-            results.append(formatted)
+        results.append(f"`{ck}` (Source: \"{src}\")")
+
+    # 2. Match against key leaf (distinctive segment) to catch typos (require high similarity >= 0.70)
+    key_leaf = key.split(".", 2)[-1] if key.count(".") >= 2 else key
+    key_matches = []
+    for ck in catalog_keys_dict.keys():
+        ck_leaf = ck.split(".", 2)[-1] if ck.count(".") >= 2 else ck
+        ratio = difflib.SequenceMatcher(None, key_leaf.lower(), ck_leaf.lower()).ratio()
+        if ratio >= 0.70:
+            key_matches.append((ratio, ck))
+    key_matches.sort(key=lambda x: x[0], reverse=True)
+    for _, ck in key_matches:
+        if f"`{ck}`" not in results and not any(ck in r for r in results):
+            results.append(f"`{ck}`")
 
     return results[:n]
+
+def classify_key(key: str, catalog_keys_dict: dict) -> tuple:
+    """Classifies an unregistered key to guide the developer accurately."""
+    matches = find_closest_matches(key, catalog_keys_dict)
+    if not matches:
+        return ("NEW_KEY", "✨ Brand New Key (Not in Catalog)", "Add label `localization-override` to auto-ingest on merge")
+    
+    first = matches[0]
+    if "Source:" in first:
+        return ("SOURCE_MATCH", f"Reuses English text of {first}", f"Use canonical key `{first.split()[0].replace('`','')}` OR override if new key intended")
+    return ("POSSIBLE_TYPO", f"Possible typo of {first}", f"Check if you intended to use `{first.replace('`','')}`")
 
 def check_override_present(labels: list, pr_body: str) -> bool:
     if os.environ.get("LOCALIZATION_OVERRIDE", "").lower() in ("true", "1", "yes"):
@@ -228,49 +249,56 @@ def main():
 
     report_lines = []
     report_lines.append(f"### 🛑 Localization Governance Alert: Unregistered Keys in {args.repo.upper()} PR")
-    report_lines.append(f"The following {len(unregistered_keys)} string keys added in this PR do not exist in `sample-localization-manager`:\n")
-    report_lines.append("| Added Key in PR | Suggested Catalog Match | Action Required |")
+    report_lines.append(f"The following {len(unregistered_keys)} string key(s) added in this PR do not yet exist in `sample-localization-manager`:\n")
+    report_lines.append("| Key in PR | Classification | Recommended Action |")
     report_lines.append("| :--- | :--- | :--- |")
 
     for k in unregistered_keys:
-        matches = find_closest_matches(k, catalog_dict)
-        match_str = matches[0] if matches else "*No close match*"
-        print(f"  - Key: '{k}' -> Closest Match: {match_str}")
-        report_lines.append(f"| `{k}` | {match_str} | Use canonical key OR register in manager |")
+        category, status_desc, action_desc = classify_key(k, catalog_dict)
+        print(f"  - Key: '{k}' -> Status: {status_desc}")
+        report_lines.append(f"| `{k}` | {status_desc} | {action_desc} |")
 
-    report_lines.append("\n### How to Resolve:")
-    report_lines.append("1. **Reuse Existing Key**: If one of the suggested catalog keys fits your semantic use case, change your code to use that key.")
-    report_lines.append("2. **Register New Key**: Add the key in [sample-localization-manager](https://github.com/shivR/sample-localization-manager) via the Translation Dashboard.")
-    report_lines.append("3. **Emergency Override**: If this is a critical hotfix, add the label `localization-override` to this PR. The check will pass and automatically file a tracked technical debt bug in the manager repo.\n")
+    report_lines.append("\n### 💡 Introducing Brand New String Keys?")
+    report_lines.append("You are completely free to add new keys! To proceed, choose one of these options:")
+    report_lines.append("1. **Automated Ingestion (Recommended)**: Add the label `localization-override` to this PR. The check will pass immediately, and once merged to `main`, Model B will automatically register the new keys in `sample-localization-manager` and generate Gemini translations!")
+    report_lines.append("2. **Catalog-First**: Register the new key in [sample-localization-manager](https://github.com/shivR/sample-localization-manager) via the Translation Dashboard before merging.")
+    report_lines.append("3. **Typo Fix**: If any key above shows 'Possible Typo' or 'Reuses English text', check if you intended to reuse the existing key.\n")
 
     report_md = "\n".join(report_lines)
 
     step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if step_summary_path:
-        with open(step_summary_path, "a", encoding="utf-8") as ssf:
-            ssf.write(report_md + "\n")
+        try:
+            with open(step_summary_path, "a", encoding="utf-8") as ssf:
+                ssf.write(report_md + "\n")
+        except Exception:
+            pass
 
     if override_active:
         print("\n" + "*" * 70)
-        print("⚠️  [EMERGENCY OVERRIDE DETECTED]")
+        print("✅ [EMERGENCY OVERRIDE DETECTED]")
         print("  Label 'localization-override' or tag present.")
-        print("  Allowing PR merge, but logging tracked technical debt bug...")
+        print("  Allowing PR merge. Logging tracked technical debt bug...")
         print("*" * 70)
 
         token = os.environ.get("LOCALIZATION_DISPATCH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
-        dispatch_debt_issue(
-            manager_repo=args.manager_repo,
-            repo=f"sample-localization-{args.repo}",
-            pr_number=args.pr_number,
-            unregistered_keys=unregistered_keys,
-            author=args.author,
-            token=token
-        )
-        print("✅ [OVERRIDE PERMITTED] Build succeeded with technical debt warning.\n")
+        try:
+            dispatch_debt_issue(
+                manager_repo=args.manager_repo,
+                repo=f"sample-localization-{args.repo}",
+                pr_number=args.pr_number,
+                unregistered_keys=unregistered_keys,
+                author=args.author,
+                token=token
+            )
+        except Exception as e:
+            print(f"  [WARN] Issue dispatch failed: {e}", file=sys.stderr)
+
+        print("\n✅ [OVERRIDE PERMITTED] Build succeeded! Keys will be auto-ingested into manager upon merge to main.\n")
         sys.exit(0)
     else:
         print("\n❌ [BLOCKED] PR blocked by localization governance.")
-        print("  To bypass for an urgent hotfix, add label: 'localization-override'")
+        print("  To allow these new keys and auto-ingest them on merge, add label: 'localization-override'")
         print("!" * 70 + "\n")
         sys.exit(1)
 
