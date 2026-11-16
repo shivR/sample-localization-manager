@@ -23,26 +23,27 @@ jobs:
             const keys = (payload.unregistered_keys || []).join(', ');
 
             const issueTitle = `[Technical Debt] Unregistered localization keys in ${sourceRepo} PR #${prNumber}`;
-            const issueBody = `### 🚨 Localization Governance Alert: Emergency Override Used
-            
-**Source Repository:** \`${sourceRepo}\`
-**Pull Request:** #${prNumber}
-**Author:** @${author}
-**Timestamp:** ${payload.timestamp}
-
-#### 📋 Unregistered Keys Detected:
-\`\`\`
-${keys}
-\`\`\`
-
----
-### 🛠️ Remediation Required:
-1. Open the [EthOS Translation Management Dashboard](https://github.com/${context.repo.owner}/${context.repo.repo}).
-2. Choose one of the following remediation paths:
-   - **Register New Keys:** Add the keys to \`master-catalog.json\` and approve translations for active locales.
-   - **Remediate Code:** Open a follow-up PR in \`${sourceRepo}\` to alias or replace the keys with existing canonical catalog keys.
-3. Close this issue once the key divergence has been resolved.
-`;
+            const issueBody = [
+              `### 🚨 Localization Governance Alert: Emergency Override Used`,
+              ``,
+              `**Source Repository:** \`${sourceRepo}\``,
+              `**Pull Request:** #${prNumber}`,
+              `**Author:** @${author}`,
+              `**Timestamp:** ${payload.timestamp}`,
+              ``,
+              `#### 📋 Unregistered Keys Detected:`,
+              `\`\`\``,
+              `${keys}`,
+              `\`\`\``,
+              ``,
+              `---`,
+              `### 🛠️ Remediation Required:`,
+              `1. Open the [EthOS Translation Management Dashboard](https://github.com/${context.repo.owner}/${context.repo.repo}).`,
+              `2. Choose one of the following remediation paths:`,
+              `   - **Register New Keys:** Add the keys to \`master-catalog.json\` and approve translations for active locales.`,
+              `   - **Remediate Code:** Open a follow-up PR in \`${sourceRepo}\` to alias or replace the keys with existing canonical catalog keys.`,
+              `3. Close this issue once the key divergence has been resolved.`
+            ].join('\n');
 
             await github.rest.issues.create({
               owner: context.repo.owner,
