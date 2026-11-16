@@ -124,6 +124,9 @@ python3 scripts/publish/firebase_publisher.py --locale es --version 1.1.0 --env 
 9. Atomically updates Realtime Database manifest at `/localization/locales/es`.
 10. Records release metadata to `translation-store/releases/{env}/metadata/` and appends to `releases/history.json`.
 
+> [!IMPORTANT]
+> **Byte-Level Digest Rule for Gate 1:** The `checksum` stored in Realtime Database `manifest.json` and verified in read-back must be calculated directly from the final serialized file bytes (`bundle_bytes = json.dumps(bundle, indent=2, ensure_ascii=False).encode("utf-8")`), NOT from an intermediate in-memory dictionary. This ensures client-side Gate 1 verification (`CryptoKit.SHA256` on iOS, `MessageDigest` on Android) against the downloaded CDN byte payload succeeds 100% of the time.
+
 ### 2.4 Emergency Rollback Execution
 If a released version exhibits unexpected linguistic or display defects in production:
 
