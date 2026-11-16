@@ -1,0 +1,77 @@
+name: Auto-Ingest Merged Localization Keys
+
+on:
+  repository_dispatch:
+    types: [ingest_new_keys]
+
+jobs:
+  ingest-and-translate:
+    name: Ingest Keys & Generate AI Translations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Ingest Keys & Generate Gemini Drafts
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          echo "$PAYLOAD" > /tmp/payload.json
+          python3 scripts/linter/ingest_keys.py --payload-file /tmp/payload.json
+
+      - name: Create Ingestion Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_REPO: ${{ github.event.client_payload.source_repo }}
+          COMMIT_SHA: ${{ github.event.client_payload.commit_sha }}
+          COMMIT_MSG: ${{ github.event.client_payload.commit_message }}
+        run: |
+          BRANCH_NAME="auto-ingest/${SOURCE_REPO}-${COMMIT_SHA:0:7}"
+          git config --global user.name "EthOS Localization Bot"
+          git config --global user.email "bot@ethos-research.com"
+          
+          if git diff --quiet catalog/ translation-store/; then
+            echo "No changes detected after ingestion."
+            exit 0
+          fi
+
+          git checkout -b "$BRANCH_NAME"
+          git add catalog/ translation-store/
+          git commit -m "feat(catalog): auto-ingest new keys from ${SOURCE_REPO} (${COMMIT_SHA:0:7})"
+
+          git push origin "$BRANCH_NAME" --force
+
+          gh pr create \
+            --title "feat(catalog): auto-ingest new strings from ${SOURCE_REPO}" \
+            --body "### 📥 Automated Localization Ingestion Pipeline
+
+          **Source Repository:** \`${SOURCE_REPO}\`
+          **Commit SHA:** \`${COMMIT_SHA}\`
+          **Commit Message:** \`${COMMIT_MSG}\`
+
+          ---
+          ### 📋 Actions Taken:
+          1. Registered newly detected strings into \`catalog/master-catalog.json\`
+          2. Staged canonical English text into \`locales/en/bundle.json\` (\`APPROVED\`)
+          3. Generated AI translation drafts for active locales with Gemini AI (\`AI_GENERATED\`)
+
+          ---
+          ### 🚀 Next Steps:
+          1. Review and refine translations in the EthOS Translation Management Dashboard.
+          2. Merge this PR into \`main\`.
+          3. Deploy the updated bundle to Firebase CDN." \
+            --head "$BRANCH_NAME" \
+            --base main || echo "PR already exists or created"
