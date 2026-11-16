@@ -18,7 +18,7 @@ import urllib.request
 WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 CATALOG_PATH = os.path.join(WORKSPACE_DIR, "catalog", "master-catalog.json")
 
-def load_catalog_keys(catalog_path_or_url: str) -> set:
+def load_catalog(catalog_path_or_url: str) -> dict:
     if catalog_path_or_url.startswith("http://") or catalog_path_or_url.startswith("https://"):
         req = urllib.request.urlopen(catalog_path_or_url, timeout=10)
         catalog = json.loads(req.read().decode("utf-8"))
@@ -27,7 +27,10 @@ def load_catalog_keys(catalog_path_or_url: str) -> set:
             raise FileNotFoundError(f"Catalog file not found at {catalog_path_or_url}")
         with open(catalog_path_or_url, "r", encoding="utf-8") as f:
             catalog = json.load(f)
-    return set(catalog.get("keys", {}).keys())
+    return catalog.get("keys", {})
+
+def load_catalog_keys(catalog_path_or_url: str) -> set:
+    return set(load_catalog(catalog_path_or_url).keys())
 
 def get_git_diff_added_lines(diff_range: str = "origin/main...HEAD") -> list:
     try:
@@ -54,33 +57,86 @@ def get_git_diff_added_lines(diff_range: str = "origin/main...HEAD") -> list:
 def extract_added_keys_ios(diff_lines: list) -> set:
     keys = set()
     for line in diff_lines:
-        if line.startswith("+") and not line.startswith("+++"):
-            # iOS .strings pattern: "key.name" = "Value";
-            strings_match = re.search(r'^\+\s*"([a-zA-Z0-9_.-]+)"\s*=', line)
-            if strings_match:
-                keys.add(strings_match.group(1))
-            # Swift code pattern: string(for: "key.name")
-            swift_match = re.search(r'string\(\s*for:\s*"([a-zA-Z0-9_.-]+)"', line)
-            if swift_match:
-                keys.add(swift_match.group(1))
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        content = line[1:].strip()
+        # Skip pure comments
+        if content.startswith("//") or content.startswith("/*") or content.startswith("*"):
+            continue
+
+        # 1. manager.string(for: "key", ...) or EthOSLocalizationManager.shared.string(for: "key", ...)
+        for m in re.finditer(r'string\(\s*for:\s*"([^"]+)"', content):
+            k = m.group(1).strip()
+            if k:
+                keys.add(k)
+
+        # 2. iOS .strings / .stringsdict format: "key" = "Value";
+        strings_match = re.search(r'^"([^"]+)"\s*=', content)
+        if strings_match:
+            k = strings_match.group(1).strip()
+            if k:
+                keys.add(k)
+
+        # 3. Hardcoded SwiftUI UI text literals: Text("literal"), Button("literal"), Label("literal")
+        for m in re.finditer(r'\b(?:Text|Button|Label)\(\s*(?:verbatim:\s*)?"([^"]+)"', content):
+            k = m.group(1).strip()
+            if k:
+                keys.add(k)
+
     return keys
 
 def extract_added_keys_android(diff_lines: list) -> set:
     keys = set()
     for line in diff_lines:
-        if line.startswith("+") and not line.startswith("+++"):
-            # Android strings.xml pattern: <string name="key_name">
-            xml_match = re.search(r'^\+\s*<string\s+name="([a-zA-Z0-9_.-]+)"', line)
-            if xml_match:
-                keys.add(xml_match.group(1))
-            # Kotlin code pattern: string("key.name")
-            kt_match = re.search(r'string\(\s*"([a-zA-Z0-9_.-]+)"', line)
-            if kt_match:
-                keys.add(kt_match.group(1))
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        content = line[1:].strip()
+        # Skip pure comments
+        if content.startswith("//") or content.startswith("/*") or content.startswith("*") or content.startswith("<!--"):
+            continue
+
+        # 1. EthOSLocalizationManager.string("key") or string(key = "key")
+        for m in re.finditer(r'string\(\s*(?:key\s*=\s*)?"([^"]+)"', content):
+            k = m.group(1).strip()
+            if k:
+                keys.add(k)
+
+        # 2. strings.xml: <string name="key">
+        xml_match = re.search(r'<string\s+[^>]*name="([^"]+)"', content)
+        if xml_match:
+            k = xml_match.group(1).strip()
+            if k:
+                keys.add(k)
+
+        # 3. Hardcoded Jetpack Compose text: Text("literal"), Text(text = "literal")
+        for m in re.finditer(r'\bText\(\s*(?:text\s*=\s*)?"([^"]+)"', content):
+            k = m.group(1).strip()
+            if k:
+                keys.add(k)
+
     return keys
 
-def find_closest_matches(key: str, catalog_keys: set, n: int = 3) -> list:
-    return difflib.get_close_matches(key, catalog_keys, n=n, cutoff=0.3)
+def find_closest_matches(key: str, catalog_keys_dict: dict, n: int = 3) -> list:
+    results = []
+    # Match against catalog key names
+    close_keys = difflib.get_close_matches(key, catalog_keys_dict.keys(), n=n, cutoff=0.25)
+    for ck in close_keys:
+        results.append(f"`{ck}`")
+
+    # Match against English source texts
+    source_matches = []
+    for ck, data in catalog_keys_dict.items():
+        src = data.get("source_text", "")
+        ratio = difflib.SequenceMatcher(None, key.lower(), src.lower()).ratio()
+        if ratio >= 0.35:
+            source_matches.append((ratio, ck, src))
+    source_matches.sort(key=lambda x: x[0], reverse=True)
+    for _, ck, src in source_matches[:2]:
+        formatted = f"`{ck}` (Source: \"{src}\")"
+        if f"`{ck}`" not in results and formatted not in results:
+            results.append(formatted)
+
+    return results[:n]
 
 def check_override_present(labels: list, pr_body: str) -> bool:
     if os.environ.get("LOCALIZATION_OVERRIDE", "").lower() in ("true", "1", "yes"):
@@ -141,7 +197,8 @@ def main():
     print(f"🛡️  Localization Key Drift Sentinel: repo='{args.repo}'")
     print(f"{'=' * 70}")
 
-    catalog_keys = load_catalog_keys(args.catalog)
+    catalog_dict = load_catalog(args.catalog)
+    catalog_keys = set(catalog_dict.keys())
     print(f"  Loaded {len(catalog_keys)} canonical keys from catalog.")
 
     if args.keys is not None:
@@ -176,8 +233,8 @@ def main():
     report_lines.append("| :--- | :--- | :--- |")
 
     for k in unregistered_keys:
-        matches = find_closest_matches(k, catalog_keys)
-        match_str = f"`{matches[0]}`" if matches else "*No close match*"
+        matches = find_closest_matches(k, catalog_dict)
+        match_str = matches[0] if matches else "*No close match*"
         print(f"  - Key: '{k}' -> Closest Match: {match_str}")
         report_lines.append(f"| `{k}` | {match_str} | Use canonical key OR register in manager |")
 
