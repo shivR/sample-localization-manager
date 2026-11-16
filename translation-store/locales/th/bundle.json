@@ -1,0 +1,139 @@
+{
+  "locale": "th",
+  "name": "Thai",
+  "translations": {
+    "ethos.sample.title": {
+      "key": "ethos.sample.title",
+      "source_text": "EthOS Dynamic Localization",
+      "translated_text": "การแปลภาษาแบบไดนามิก EthOS",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.welcome": {
+      "key": "ethos.sample.welcome",
+      "source_text": "Welcome to EthOS Research Study",
+      "translated_text": "ยินดีต้อนรับสู่โครงการวิจัย EthOS",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.instructions": {
+      "key": "ethos.sample.instructions",
+      "source_text": "Observe real-time dynamic string updates without app restart.",
+      "translated_text": "ดูการอัปเดตข้อความแบบเรียลไทม์โดยไม่ต้องรีสตาร์ทแอป",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.status.active": {
+      "key": "ethos.sample.status.active",
+      "source_text": "Active",
+      "translated_text": "เปิดใช้งาน",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.status.syncing": {
+      "key": "ethos.sample.status.syncing",
+      "source_text": "Syncing with Firebase...",
+      "translated_text": "กำลังซิงค์กับ Firebase...",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.status.synced": {
+      "key": "ethos.sample.status.synced",
+      "source_text": "Synchronized with CDN",
+      "translated_text": "ซิงค์กับ CDN เรียบร้อยแล้ว",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.status.offline": {
+      "key": "ethos.sample.status.offline",
+      "source_text": "Offline Mode (Using Cache)",
+      "translated_text": "โหมดออฟไลน์ (ใช้แคช)",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.btn.submit": {
+      "key": "ethos.sample.btn.submit",
+      "source_text": "Submit Response",
+      "translated_text": "ส่งคำตอบ",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.btn.refresh": {
+      "key": "ethos.sample.btn.refresh",
+      "source_text": "Check for Updates",
+      "translated_text": "ตรวจสอบการอัปเดต",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.btn.reset": {
+      "key": "ethos.sample.btn.reset",
+      "source_text": "Reset to Defaults",
+      "translated_text": "รีเซ็ตเป็นค่าเริ่มต้น",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.btn.exit_study": {
+      "key": "ethos.sample.btn.exit_study",
+      "source_text": "Exit Study",
+      "translated_text": "ออกจากการศึกษา",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.counter.completed_tasks": {
+      "key": "ethos.sample.counter.completed_tasks",
+      "source_text": "{completed} of {total} activities completed",
+      "translated_text": "เสร็จสิ้นกิจกรรม {completed} จากทั้งหมด {total} รายการ",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.sync.last_updated": {
+      "key": "ethos.sample.sync.last_updated",
+      "source_text": "Last updated: {timestamp}",
+      "translated_text": "อัปเดตล่าสุด: {timestamp}",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.sync.bundle_version": {
+      "key": "ethos.sample.sync.bundle_version",
+      "source_text": "Active Bundle Version: {version}",
+      "translated_text": "เวอร์ชันแพ็กเกจที่ใช้งาน: {version}",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.study.selector_title": {
+      "key": "ethos.sample.study.selector_title",
+      "source_text": "Simulate Study Context",
+      "translated_text": "จำลองบริบทการศึกษา",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.study.none": {
+      "key": "ethos.sample.study.none",
+      "source_text": "No Study Selected (System Language)",
+      "translated_text": "ไม่ได้เลือกการศึกษา (ภาษาของระบบ)",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.study.es_name": {
+      "key": "ethos.sample.study.es_name",
+      "source_text": "Study 101 - Latin America (Spanish)",
+      "translated_text": "การศึกษา 101 - ละตินอเมริกา (สเปน)",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.study.th_name": {
+      "key": "ethos.sample.study.th_name",
+      "source_text": "Study 202 - Asia Pacific (Thai)",
+      "translated_text": "การศึกษา 202 - เอเชียแปซิฟิก (ไทย)",
+      "translation_status": "APPROVED",
+      "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.fallback_test": {
+      "key": "ethos.sample.fallback_test",
+      "source_text": "This text verifies fallback when untranslated in target locale.",
+      "translated_text": "",
+      "translation_status": "NOT_TRANSLATED",
+      "translator_type": null
+    }
+  }
+}

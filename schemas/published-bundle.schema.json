@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ethos.pcg.com/schemas/published-bundle.schema.json",
+  "title": "EthOS Published Runtime Bundle Schema",
+  "description": "Defines the immutable client runtime distribution bundle delivered via Firebase Storage for dynamic in-app localization",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "locale",
+    "version",
+    "environment",
+    "source_catalog_version",
+    "source_catalog_sha256",
+    "generated_at",
+    "target_platform",
+    "fallback_locale",
+    "payload_hash",
+    "bundle_checksum",
+    "translation_coverage",
+    "approved_revision_metadata",
+    "strings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0.0"],
+      "description": "Schema version of the published bundle format"
+    },
+    "bundle_id": {
+      "type": "string",
+      "pattern": "^bundle-[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?-v[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Unique immutable bundle identifier, e.g. bundle-en-v1.0.0"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$",
+      "description": "Target BCP 47 locale code (e.g. en, id, vi, th, pl)"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic release version of the bundle"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["development", "staging", "production"],
+      "description": "Deployment environment tier"
+    },
+    "source_catalog_version": {
+      "type": "string",
+      "description": "Semantic version of the master catalog from which this release was generated"
+    },
+    "source_catalog_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 hash of the master catalog baseline"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 compilation timestamp"
+    },
+    "target_platform": {
+      "type": "string",
+      "enum": ["all", "ios", "android", "web"],
+      "default": "all",
+      "description": "Target deployment platform"
+    },
+    "fallback_locale": {
+      "type": "string",
+      "default": "en",
+      "description": "Fallback locale if a key lookup misses"
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 hash of the canonical serialized strings payload"
+    },
+    "bundle_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 hash of the complete bundle JSON document"
+    },
+    "translation_coverage": {
+      "type": "object",
+      "required": [
+        "total_catalog_keys",
+        "approved_keys_count",
+        "coverage_percent",
+        "is_complete",
+        "status"
+      ],
+      "properties": {
+        "total_catalog_keys": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "approved_keys_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_percent": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0
+        },
+        "is_complete": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["COMPLETE", "PARTIAL", "PENDING_TRANSLATION"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "approved_revision_metadata": {
+      "type": "object",
+      "required": ["bundle_revision", "last_updated", "approver"],
+      "properties": {
+        "bundle_revision": { "type": "integer", "minimum": 0 },
+        "last_updated": { "type": "string", "format": "date-time" },
+        "approver": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "strings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Flat dictionary mapping canonical semantic keys to approved localized strings"
+    },
+    "plurals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "zero": { "type": "string" },
+          "one": { "type": "string" },
+          "two": { "type": "string" },
+          "few": { "type": "string" },
+          "many": { "type": "string" },
+          "other": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "description": "Optional plural variations keyed by semantic key"
+    }
+  },
+  "additionalProperties": false
+}

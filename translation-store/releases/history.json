@@ -1,0 +1,110 @@
+[
+  {
+    "schema_version": "1.0.0",
+    "release_id": "rel-development-en-1.0.0-20261116093327",
+    "environment": "development",
+    "locale": "en",
+    "version": "1.0.0",
+    "bundle_path": "localization/locales/en/1.0.0/bundle.json",
+    "bundle_checksum": "85b1cd16c85154b3942373671d443624e406bc0cc4a6babd21b4f76b858e5090",
+    "payload_hash": "d6c0b8c3c210eedc3eaf0fd6c0d8f75f85cf4118831d8891b8539ddd4aaff66a",
+    "source_catalog_version": "1.0.0",
+    "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
+    "status": "PUBLISHED",
+    "coverage": {
+      "total_catalog_keys": 19,
+      "approved_keys_count": 19,
+      "coverage_percent": 100.0,
+      "is_complete": true
+    },
+    "created_at": "2026-11-16T09:33:27Z",
+    "published_at": "2026-11-16T09:33:27Z",
+    "publisher": {
+      "id": "sample_publisher",
+      "role": "ci_publisher"
+    },
+    "verification": {
+      "verified_at": "2026-11-16T09:33:27Z",
+      "checksum_matched": true,
+      "read_back_verified": true,
+      "schema_valid": true,
+      "read_back_size_bytes": 2162
+    },
+    "changelog": [
+      "Release of en v1.0.0 to development",
+      "Coverage: 19/19 keys (100.0%)"
+    ]
+  },
+  {
+    "schema_version": "1.0.0",
+    "release_id": "rel-development-es-1.0.0-20261116093328",
+    "environment": "development",
+    "locale": "es",
+    "version": "1.0.0",
+    "bundle_path": "localization/locales/es/1.0.0/bundle.json",
+    "bundle_checksum": "a28d5263b375b86ae8d97679a3d96ed04b0d7e14b281a477ad6dfe11ca518275",
+    "payload_hash": "82232649148bbed3b3a57664867a9f74fa99a031a4d6b8ac591b540b722491df",
+    "source_catalog_version": "1.0.0",
+    "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
+    "status": "PUBLISHED",
+    "coverage": {
+      "total_catalog_keys": 19,
+      "approved_keys_count": 18,
+      "coverage_percent": 94.7,
+      "is_complete": false
+    },
+    "created_at": "2026-11-16T09:33:27Z",
+    "published_at": "2026-11-16T09:33:27Z",
+    "publisher": {
+      "id": "sample_publisher",
+      "role": "ci_publisher"
+    },
+    "verification": {
+      "verified_at": "2026-11-16T09:33:27Z",
+      "checksum_matched": true,
+      "read_back_verified": true,
+      "schema_valid": true,
+      "read_back_size_bytes": 2172
+    },
+    "changelog": [
+      "Release of es v1.0.0 to development",
+      "Coverage: 18/19 keys (94.7%)"
+    ]
+  },
+  {
+    "schema_version": "1.0.0",
+    "release_id": "rel-development-th-1.0.0-20261116093328",
+    "environment": "development",
+    "locale": "th",
+    "version": "1.0.0",
+    "bundle_path": "localization/locales/th/1.0.0/bundle.json",
+    "bundle_checksum": "6f4880c680c221c24ca198e9915a4bee0faeed765770e5d0f72b21697a86eed1",
+    "payload_hash": "1547d01be0e762b05159c7e24e26ab6fe3f78e02fa2ba3cc10903a77a73efdd0",
+    "source_catalog_version": "1.0.0",
+    "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
+    "status": "PUBLISHED",
+    "coverage": {
+      "total_catalog_keys": 19,
+      "approved_keys_count": 18,
+      "coverage_percent": 94.7,
+      "is_complete": false
+    },
+    "created_at": "2026-11-16T09:33:28Z",
+    "published_at": "2026-11-16T09:33:28Z",
+    "publisher": {
+      "id": "sample_publisher",
+      "role": "ci_publisher"
+    },
+    "verification": {
+      "verified_at": "2026-11-16T09:33:28Z",
+      "checksum_matched": true,
+      "read_back_verified": true,
+      "schema_valid": true,
+      "read_back_size_bytes": 2830
+    },
+    "changelog": [
+      "Release of th v1.0.0 to development",
+      "Coverage: 18/19 keys (94.7%)"
+    ]
+  }
+]

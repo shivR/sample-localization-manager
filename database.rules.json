@@ -1,0 +1,72 @@
+{
+  "rules": {
+    "localization": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)",
+      ".validate": "newData.hasChildren(['schema_version', 'environment', 'default_locale', 'updated_at', 'source_catalog_sha256', 'locales'])",
+      "schema_version": {
+        ".validate": "newData.isString() && newData.val().matches(/^[0-9]+\\.[0-9]+\\.[0-9]+$/)"
+      },
+      "environment": {
+        ".validate": "newData.isString() && (newData.val() === 'development' || newData.val() === 'staging' || newData.val() === 'production')"
+      },
+      "default_locale": {
+        ".validate": "newData.isString() && newData.val() === 'en'"
+      },
+      "updated_at": {
+        ".validate": "newData.isString()"
+      },
+      "source_catalog_version": {
+        ".validate": "newData.isString()"
+      },
+      "source_catalog_sha256": {
+        ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+      },
+      "locales": {
+        "$locale": {
+          ".validate": "newData.hasChildren(['locale', 'version', 'path', 'checksum', 'status', 'coverage_percent', 'approved_keys_count', 'total_catalog_keys', 'published_at', 'publisher_id', 'rollback_metadata']) && $locale.matches(/^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$/)",
+          "locale": {
+            ".validate": "newData.isString() && newData.val() === $locale"
+          },
+          "version": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]+\\.[0-9]+\\.[0-9]+$/)"
+          },
+          "path": {
+            ".validate": "newData.isString() && newData.val().matches(/^localization\\/locales\\/[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?\\/[0-9]+\\.[0-9]+\\.[0-9]+\\/bundle\\.json$/)"
+          },
+          "checksum": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+          },
+          "payload_hash": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() === 'ACTIVE' || newData.val() === 'ROLLED_BACK' || newData.val() === 'DEPRECATED' || newData.val() === 'PENDING')"
+          },
+          "coverage_percent": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "approved_keys_count": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "total_catalog_keys": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "published_at": {
+            ".validate": "newData.isString()"
+          },
+          "publisher_id": {
+            ".validate": "newData.isString()"
+          },
+          "rollback_metadata": {
+            ".validate": "newData.hasChildren(['is_rollback'])"
+          }
+        }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

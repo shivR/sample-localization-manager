@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-11-16T12:00:00Z",
+  "total_keys": 18,
+  "keys": {
+    "ethos.sample.title": {
+      "key": "ethos.sample.title",
+      "category": "GLOBAL_UI",
+      "source_text": "EthOS Dynamic Localization",
+      "description": "App bar title for the sample application",
+      "placeholders": []
+    },
+    "ethos.sample.welcome": {
+      "key": "ethos.sample.welcome",
+      "category": "GLOBAL_UI",
+      "source_text": "Welcome to EthOS Research Study",
+      "description": "Main welcome banner heading",
+      "placeholders": []
+    },
+    "ethos.sample.instructions": {
+      "key": "ethos.sample.instructions",
+      "category": "GLOBAL_UI",
+      "source_text": "Observe real-time dynamic string updates without app restart.",
+      "description": "Exploratory instructions under the header",
+      "placeholders": []
+    },
+    "ethos.sample.status.active": {
+      "key": "ethos.sample.status.active",
+      "category": "GLOBAL_UI",
+      "source_text": "Active",
+      "description": "Indicator label when bundle is active",
+      "placeholders": []
+    },
+    "ethos.sample.status.syncing": {
+      "key": "ethos.sample.status.syncing",
+      "category": "GLOBAL_UI",
+      "source_text": "Syncing with Firebase...",
+      "description": "Indicator label when synchronizing manifest or downloading bundle",
+      "placeholders": []
+    },
+    "ethos.sample.status.synced": {
+      "key": "ethos.sample.status.synced",
+      "category": "GLOBAL_UI",
+      "source_text": "Synchronized with CDN",
+      "description": "Indicator label when client has verified latest bundle",
+      "placeholders": []
+    },
+    "ethos.sample.status.offline": {
+      "key": "ethos.sample.status.offline",
+      "category": "GLOBAL_UI",
+      "source_text": "Offline Mode (Using Cache)",
+      "description": "Indicator label when offline",
+      "placeholders": []
+    },
+    "ethos.sample.btn.submit": {
+      "key": "ethos.sample.btn.submit",
+      "category": "GLOBAL_UI",
+      "source_text": "Submit Response",
+      "description": "Primary action button to submit participant response",
+      "placeholders": []
+    },
+    "ethos.sample.btn.refresh": {
+      "key": "ethos.sample.btn.refresh",
+      "category": "GLOBAL_UI",
+      "source_text": "Check for Updates",
+      "description": "Secondary action button to re-check manifest",
+      "placeholders": []
+    },
+    "ethos.sample.btn.reset": {
+      "key": "ethos.sample.btn.reset",
+      "category": "GLOBAL_UI",
+      "source_text": "Reset to Defaults",
+      "description": "Button to clear cache and reset state",
+      "placeholders": []
+    },
+    "ethos.sample.btn.exit_study": {
+      "key": "ethos.sample.btn.exit_study",
+      "category": "GLOBAL_UI",
+      "source_text": "Exit Study",
+      "description": "Button to leave study context and return to device language",
+      "placeholders": []
+    },
+    "ethos.sample.counter.completed_tasks": {
+      "key": "ethos.sample.counter.completed_tasks",
+      "category": "GLOBAL_UI",
+      "source_text": "{completed} of {total} activities completed",
+      "description": "Activity progress counter with positional placeholders",
+      "placeholders": ["completed", "total"]
+    },
+    "ethos.sample.sync.last_updated": {
+      "key": "ethos.sample.sync.last_updated",
+      "category": "GLOBAL_UI",
+      "source_text": "Last updated: {timestamp}",
+      "description": "Metadata banner displaying last sync timestamp",
+      "placeholders": ["timestamp"]
+    },
+    "ethos.sample.sync.bundle_version": {
+      "key": "ethos.sample.sync.bundle_version",
+      "category": "GLOBAL_UI",
+      "source_text": "Active Bundle Version: {version}",
+      "description": "Metadata banner displaying active bundle version",
+      "placeholders": ["version"]
+    },
+    "ethos.sample.study.selector_title": {
+      "key": "ethos.sample.study.selector_title",
+      "category": "GLOBAL_UI",
+      "source_text": "Simulate Study Context",
+      "description": "Section header for study switcher",
+      "placeholders": []
+    },
+    "ethos.sample.study.none": {
+      "key": "ethos.sample.study.none",
+      "category": "GLOBAL_UI",
+      "source_text": "No Study Selected (System Language)",
+      "description": "Option for pre-project device default",
+      "placeholders": []
+    },
+    "ethos.sample.study.es_name": {
+      "key": "ethos.sample.study.es_name",
+      "category": "GLOBAL_UI",
+      "source_text": "Study 101 - Latin America (Spanish)",
+      "description": "Spanish test study title",
+      "placeholders": []
+    },
+    "ethos.sample.study.th_name": {
+      "key": "ethos.sample.study.th_name",
+      "category": "GLOBAL_UI",
+      "source_text": "Study 202 - Asia Pacific (Thai)",
+      "description": "Thai test study title",
+      "placeholders": []
+    },
+    "ethos.sample.fallback_test": {
+      "key": "ethos.sample.fallback_test",
+      "category": "GLOBAL_UI",
+      "source_text": "This text verifies fallback when untranslated in target locale.",
+      "description": "Key intentionally left untranslated in non-English locales to test Tier 2 fallback",
+      "placeholders": []
+    }
+  }
+}

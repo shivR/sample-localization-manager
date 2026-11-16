@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "bundle_id": "bundle-es-v1.0.0",
+  "locale": "es",
+  "version": "1.0.0",
+  "environment": "development",
+  "source_catalog_version": "1.0.0",
+  "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
+  "generated_at": "2026-11-16T09:33:27Z",
+  "target_platform": "all",
+  "fallback_locale": "en",
+  "payload_hash": "82232649148bbed3b3a57664867a9f74fa99a031a4d6b8ac591b540b722491df",
+  "bundle_checksum": "a28d5263b375b86ae8d97679a3d96ed04b0d7e14b281a477ad6dfe11ca518275",
+  "translation_coverage": {
+    "total_catalog_keys": 19,
+    "approved_keys_count": 18,
+    "coverage_percent": 94.7,
+    "is_complete": false,
+    "status": "PARTIAL"
+  },
+  "approved_revision_metadata": {
+    "bundle_revision": 1,
+    "last_updated": "2026-11-16T09:33:27Z",
+    "approver": "sample_publisher"
+  },
+  "strings": {
+    "ethos.sample.title": "Localización Dinámica EthOS",
+    "ethos.sample.welcome": "Bienvenido al Estudio de Investigación EthOS",
+    "ethos.sample.instructions": "Observe actualizaciones de cadenas en tiempo real sin reiniciar la aplicación.",
+    "ethos.sample.status.active": "Activo",
+    "ethos.sample.status.syncing": "Sincronizando con Firebase...",
+    "ethos.sample.status.synced": "Sincronizado con CDN",
+    "ethos.sample.status.offline": "Modo sin conexión (Usando caché)",
+    "ethos.sample.btn.submit": "Enviar Respuesta",
+    "ethos.sample.btn.refresh": "Buscar Actualizaciones",
+    "ethos.sample.btn.reset": "Restablecer Valores",
+    "ethos.sample.btn.exit_study": "Salir del Estudio",
+    "ethos.sample.counter.completed_tasks": "{completed} de {total} actividades completadas",
+    "ethos.sample.sync.last_updated": "Última actualización: {timestamp}",
+    "ethos.sample.sync.bundle_version": "Versión del Paquete Activo: {version}",
+    "ethos.sample.study.selector_title": "Simular Contexto del Estudio",
+    "ethos.sample.study.none": "Sin estudio seleccionado (Idioma del sistema)",
+    "ethos.sample.study.es_name": "Estudio 101 - América Latina (Español)",
+    "ethos.sample.study.th_name": "Estudio 202 - Asia Pacífico (Tailandés)"
+  },
+  "plurals": {}
+}

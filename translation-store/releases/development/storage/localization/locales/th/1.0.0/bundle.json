@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "bundle_id": "bundle-th-v1.0.0",
+  "locale": "th",
+  "version": "1.0.0",
+  "environment": "development",
+  "source_catalog_version": "1.0.0",
+  "source_catalog_sha256": "f008949229e8c2ff7f663f618bb5fd32b9cd55e43e7159334c0fce0d3c355ec0",
+  "generated_at": "2026-11-16T09:33:28Z",
+  "target_platform": "all",
+  "fallback_locale": "en",
+  "payload_hash": "1547d01be0e762b05159c7e24e26ab6fe3f78e02fa2ba3cc10903a77a73efdd0",
+  "bundle_checksum": "6f4880c680c221c24ca198e9915a4bee0faeed765770e5d0f72b21697a86eed1",
+  "translation_coverage": {
+    "total_catalog_keys": 19,
+    "approved_keys_count": 18,
+    "coverage_percent": 94.7,
+    "is_complete": false,
+    "status": "PARTIAL"
+  },
+  "approved_revision_metadata": {
+    "bundle_revision": 1,
+    "last_updated": "2026-11-16T09:33:28Z",
+    "approver": "sample_publisher"
+  },
+  "strings": {
+    "ethos.sample.title": "การแปลภาษาแบบไดนามิก EthOS",
+    "ethos.sample.welcome": "ยินดีต้อนรับสู่โครงการวิจัย EthOS",
+    "ethos.sample.instructions": "ดูการอัปเดตข้อความแบบเรียลไทม์โดยไม่ต้องรีสตาร์ทแอป",
+    "ethos.sample.status.active": "เปิดใช้งาน",
+    "ethos.sample.status.syncing": "กำลังซิงค์กับ Firebase...",
+    "ethos.sample.status.synced": "ซิงค์กับ CDN เรียบร้อยแล้ว",
+    "ethos.sample.status.offline": "โหมดออฟไลน์ (ใช้แคช)",
+    "ethos.sample.btn.submit": "ส่งคำตอบ",
+    "ethos.sample.btn.refresh": "ตรวจสอบการอัปเดต",
+    "ethos.sample.btn.reset": "รีเซ็ตเป็นค่าเริ่มต้น",
+    "ethos.sample.btn.exit_study": "ออกจากการศึกษา",
+    "ethos.sample.counter.completed_tasks": "เสร็จสิ้นกิจกรรม {completed} จากทั้งหมด {total} รายการ",
+    "ethos.sample.sync.last_updated": "อัปเดตล่าสุด: {timestamp}",
+    "ethos.sample.sync.bundle_version": "เวอร์ชันแพ็กเกจที่ใช้งาน: {version}",
+    "ethos.sample.study.selector_title": "จำลองบริบทการศึกษา",
+    "ethos.sample.study.none": "ไม่ได้เลือกการศึกษา (ภาษาของระบบ)",
+    "ethos.sample.study.es_name": "การศึกษา 101 - ละตินอเมริกา (สเปน)",
+    "ethos.sample.study.th_name": "การศึกษา 202 - เอเชียแปซิฟิก (ไทย)"
+  },
+  "plurals": {}
+}

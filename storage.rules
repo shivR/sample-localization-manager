@@ -1,0 +1,56 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Strict helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isPublisher() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'publisher' || request.auth.token.admin == true || request.auth.token.role == 'ci_publisher');
+    }
+    
+    function isValidLocale(loc) {
+      return loc.matches('^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$');
+    }
+    
+    function isValidVersion(ver) {
+      return ver.matches('^[0-9]+\\.[0-9]+\\.[0-9]+$');
+    }
+    
+    // Match versioned localization bundle objects
+    // Environment isolation is enforced by using dedicated project buckets
+    match /localization/locales/{locale}/{version}/{filename} {
+      // Authenticated clients may read verified bundles
+      allow read: if isAuthenticated() &&
+                     isValidLocale(locale) &&
+                     isValidVersion(version) &&
+                     filename == 'bundle.json';
+      
+      // Strict publishing constraints:
+      // 1. Only authorized publisher identities
+      // 2. Immutability guarantee: object must not already exist (no overwrites)
+      // 3. Valid locale, version naming
+      // 4. Maximum size 5MB and application/json MIME type
+      allow create: if isPublisher() &&
+                       resource == null &&
+                       isValidLocale(locale) &&
+                       isValidVersion(version) &&
+                       filename == 'bundle.json' &&
+                       request.resource.size < 5 * 1024 * 1024 &&
+                       request.resource.contentType.matches('application/json.*');
+      
+      // Overwrite and deletion are strictly prohibited to enforce immutable history
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // Default deny for all other paths
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ethos.pcg.com/schemas/database-manifest.schema.json",
+  "title": "EthOS Firebase Database Distribution Manifest Schema",
+  "description": "Defines the authoritative structure of the Firebase Realtime Database or Firestore localization manifest",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/definitions/EnvironmentManifest" },
+    { "$ref": "#/definitions/RootLocalizationManifest" }
+  ],
+  "definitions": {
+    "EnvironmentManifest": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "environment",
+        "default_locale",
+        "updated_at",
+        "source_catalog_version",
+        "source_catalog_sha256",
+        "locales"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "enum": ["1.0.0"],
+          "description": "Schema version of the manifest format"
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["development", "staging", "production"],
+          "description": "Target deployment environment"
+        },
+        "default_locale": {
+          "type": "string",
+          "default": "en",
+          "description": "Canonical fallback locale code"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last manifest update"
+        },
+        "source_catalog_version": {
+          "type": "string",
+          "description": "Version of the master catalog"
+        },
+        "source_catalog_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "SHA-256 hash of the master catalog baseline"
+        },
+        "locales": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LocaleEntry"
+          },
+          "description": "Map of locale code to active release metadata"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RootLocalizationManifest": {
+      "type": "object",
+      "required": ["localization"],
+      "properties": {
+        "localization": {
+          "type": "object",
+          "required": ["development", "staging", "production"],
+          "properties": {
+            "development": { "$ref": "#/definitions/EnvironmentManifest" },
+            "staging": { "$ref": "#/definitions/EnvironmentManifest" },
+            "production": { "$ref": "#/definitions/EnvironmentManifest" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "LocaleEntry": {
+      "type": "object",
+      "required": [
+        "locale",
+        "version",
+        "path",
+        "checksum",
+        "payload_hash",
+        "status",
+        "coverage_percent",
+        "approved_keys_count",
+        "total_catalog_keys",
+        "published_at",
+        "publisher_id",
+        "rollback_metadata"
+      ],
+      "properties": {
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$",
+          "description": "BCP 47 language code"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic version of the active bundle"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^localization/locales/[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?/[0-9]+\\.[0-9]+\\.[0-9]+/bundle\\.json$",
+          "description": "Immutable relative path in Firebase Storage"
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "SHA-256 hash of the uploaded bundle file"
+        },
+        "payload_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "SHA-256 hash of the canonical strings payload"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "ROLLED_BACK", "DEPRECATED", "PENDING"],
+          "description": "Runtime activation status of this locale version"
+        },
+        "coverage_percent": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "description": "Coverage percentage of approved keys"
+        },
+        "approved_keys_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total approved keys in this bundle"
+        },
+        "total_catalog_keys": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total eligible global UI keys in master catalog"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 publication timestamp"
+        },
+        "publisher_id": {
+          "type": "string",
+          "description": "Identifier of publishing actor or CI agent"
+        },
+        "min_client_version": {
+          "type": ["string", "null"],
+          "description": "Minimum mobile client app version supporting this bundle"
+        },
+        "previous_version": {
+          "type": ["string", "null"],
+          "description": "Previous active version for rollback reference"
+        },
+        "rollback_metadata": {
+          "type": "object",
+          "required": [
+            "is_rollback",
+            "rolled_back_at",
+            "rolled_back_from",
+            "reason",
+            "actor"
+          ],
+          "properties": {
+            "is_rollback": { "type": "boolean" },
+            "rolled_back_at": { "type": ["string", "null"], "format": "date-time" },
+            "rolled_back_from": { "type": ["string", "null"] },
+            "reason": { "type": ["string", "null"] },
+            "actor": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

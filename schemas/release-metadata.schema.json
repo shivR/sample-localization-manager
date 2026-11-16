@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ethos.pcg.com/schemas/release-metadata.schema.json",
+  "title": "EthOS Localization Release Metadata Schema",
+  "description": "Defines release metadata records for bundle generation, verification, and audit tracking",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "release_id",
+    "environment",
+    "locale",
+    "version",
+    "bundle_path",
+    "bundle_checksum",
+    "payload_hash",
+    "source_catalog_version",
+    "source_catalog_sha256",
+    "status",
+    "coverage",
+    "created_at",
+    "publisher",
+    "verification"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^rel-(development|staging|production)-[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?-[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]{14}$",
+      "description": "Unique immutable release identifier"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["development", "staging", "production"]
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "bundle_path": {
+      "type": "string",
+      "pattern": "^localization/locales/[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?/[0-9]+\\.[0-9]+\\.[0-9]+/bundle\\.json$"
+    },
+    "bundle_checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "source_catalog_version": {
+      "type": "string"
+    },
+    "source_catalog_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["STAGED", "VERIFIED", "PUBLISHED", "ROLLED_BACK", "ABORTED"]
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "total_catalog_keys",
+        "approved_keys_count",
+        "coverage_percent",
+        "is_complete"
+      ],
+      "properties": {
+        "total_catalog_keys": { "type": "integer", "minimum": 0 },
+        "approved_keys_count": { "type": "integer", "minimum": 0 },
+        "coverage_percent": { "type": "number", "minimum": 0.0, "maximum": 100.0 },
+        "is_complete": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "published_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "publisher": {
+      "type": "object",
+      "required": ["id", "role"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string", "enum": ["administrator", "ci_publisher", "system"] },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "verified_at",
+        "checksum_matched",
+        "read_back_verified",
+        "schema_valid"
+      ],
+      "properties": {
+        "verified_at": { "type": ["string", "null"], "format": "date-time" },
+        "checksum_matched": { "type": "boolean" },
+        "read_back_verified": { "type": "boolean" },
+        "schema_valid": { "type": "boolean" },
+        "read_back_size_bytes": { "type": ["integer", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "changelog": {
+      "type": ["string", "array"],
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}
