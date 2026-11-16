@@ -1,0 +1,53 @@
+name: Handle Localization Debt Alert
+
+on:
+  repository_dispatch:
+    types: [localization_debt_logged]
+
+jobs:
+  create-debt-issue:
+    name: Create Tracked Debt Issue
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Create GitHub Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const payload = context.payload.client_payload;
+            const sourceRepo = payload.source_repo || 'unknown';
+            const prNumber = payload.pr_number || 'N/A';
+            const author = payload.author || 'developer';
+            const keys = (payload.unregistered_keys || []).join(', ');
+
+            const issueTitle = `[Technical Debt] Unregistered localization keys in ${sourceRepo} PR #${prNumber}`;
+            const issueBody = `### 🚨 Localization Governance Alert: Emergency Override Used
+            
+**Source Repository:** \`${sourceRepo}\`
+**Pull Request:** #${prNumber}
+**Author:** @${author}
+**Timestamp:** ${payload.timestamp}
+
+#### 📋 Unregistered Keys Detected:
+\`\`\`
+${keys}
+\`\`\`
+
+---
+### 🛠️ Remediation Required:
+1. Open the [EthOS Translation Management Dashboard](https://github.com/${context.repo.owner}/${context.repo.repo}).
+2. Choose one of the following remediation paths:
+   - **Register New Keys:** Add the keys to \`master-catalog.json\` and approve translations for active locales.
+   - **Remediate Code:** Open a follow-up PR in \`${sourceRepo}\` to alias or replace the keys with existing canonical catalog keys.
+3. Close this issue once the key divergence has been resolved.
+`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['technical-debt', 'localization', 'needs-triage']
+            });

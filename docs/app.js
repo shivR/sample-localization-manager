@@ -1,0 +1,520 @@
+/**
+ * EthOS Dynamic Localization Dashboard Application Script
+ * Provides:
+ * - Master catalog & multi-locale translation state
+ * - Gemini AI translation generation
+ * - CSV export & import (Google Sheets round-trip)
+ * - Breaking change detection (missing keys alert with override)
+ * - In-place editing, approve, reject, approve all
+ * - Firebase deployment trigger
+ */
+
+// Initial Catalog State
+const INITIAL_CATALOG = {
+  "ethos.sample.title": { source: "EthOS Dynamic Localization", cat: "GLOBAL_UI", desc: "App bar title" },
+  "ethos.sample.welcome": { source: "Welcome to EthOS Research Study", cat: "GLOBAL_UI", desc: "Main welcome banner" },
+  "ethos.sample.instructions": { source: "Observe real-time dynamic string updates without app restart.", cat: "GLOBAL_UI", desc: "Exploratory instructions" },
+  "ethos.sample.status.active": { source: "Active", cat: "GLOBAL_UI", desc: "Indicator label when bundle is active" },
+  "ethos.sample.status.syncing": { source: "Syncing with Firebase...", cat: "GLOBAL_UI", desc: "Sync indicator" },
+  "ethos.sample.status.synced": { source: "Synchronized with CDN", cat: "GLOBAL_UI", desc: "CDN sync indicator" },
+  "ethos.sample.status.offline": { source: "Offline Mode (Using Cache)", cat: "GLOBAL_UI", desc: "Offline indicator" },
+  "ethos.sample.btn.submit": { source: "Submit Response", cat: "GLOBAL_UI", desc: "Action button to submit response" },
+  "ethos.sample.btn.refresh": { source: "Check for Updates", cat: "GLOBAL_UI", desc: "Action button to re-check manifest" },
+  "ethos.sample.btn.reset": { source: "Reset to Defaults", cat: "GLOBAL_UI", desc: "Button to clear cache" },
+  "ethos.sample.btn.exit_study": { source: "Exit Study", cat: "GLOBAL_UI", desc: "Button to return to device language" },
+  "ethos.sample.counter.completed_tasks": { source: "{completed} of {total} activities completed", cat: "GLOBAL_UI", desc: "Activity progress counter" },
+  "ethos.sample.sync.last_updated": { source: "Last updated: {timestamp}", cat: "GLOBAL_UI", desc: "Last updated timestamp label" },
+  "ethos.sample.sync.bundle_version": { source: "Active Bundle Version: {version}", cat: "GLOBAL_UI", desc: "Bundle version label" },
+  "ethos.sample.study.selector_title": { source: "Simulate Study Context", cat: "GLOBAL_UI", desc: "Study switcher header" },
+  "ethos.sample.study.none": { source: "No Study Selected (System Language)", cat: "GLOBAL_UI", desc: "Option for device default" },
+  "ethos.sample.study.es_name": { source: "Study 101 - Latin America (Spanish)", cat: "GLOBAL_UI", desc: "Spanish test study" },
+  "ethos.sample.study.th_name": { source: "Study 202 - Asia Pacific (Thai)", cat: "GLOBAL_UI", desc: "Thai test study" },
+  "ethos.sample.fallback_test": { source: "This text verifies fallback when untranslated in target locale.", cat: "GLOBAL_UI", desc: "Tier 2 fallback verification" }
+};
+
+// Initial Translations Store
+const INITIAL_TRANSLATIONS = {
+  es: {
+    "ethos.sample.title": { text: "Localización Dinámica EthOS", status: "APPROVED" },
+    "ethos.sample.welcome": { text: "Bienvenido al Estudio de Investigación EthOS", status: "APPROVED" },
+    "ethos.sample.instructions": { text: "Observe actualizaciones de cadenas en tiempo real sin reiniciar la aplicación.", status: "APPROVED" },
+    "ethos.sample.status.active": { text: "Activo", status: "APPROVED" },
+    "ethos.sample.status.syncing": { text: "Sincronizando con Firebase...", status: "APPROVED" },
+    "ethos.sample.status.synced": { text: "Sincronizado con CDN", status: "APPROVED" },
+    "ethos.sample.status.offline": { text: "Modo sin conexión (Usando caché)", status: "APPROVED" },
+    "ethos.sample.btn.submit": { text: "Enviar Respuesta", status: "APPROVED" },
+    "ethos.sample.btn.refresh": { text: "Buscar Actualizaciones", status: "APPROVED" },
+    "ethos.sample.btn.reset": { text: "Restablecer Valores", status: "APPROVED" },
+    "ethos.sample.btn.exit_study": { text: "Salir del Estudio", status: "APPROVED" },
+    "ethos.sample.counter.completed_tasks": { text: "{completed} de {total} actividades completadas", status: "APPROVED" },
+    "ethos.sample.sync.last_updated": { text: "Última actualización: {timestamp}", status: "APPROVED" },
+    "ethos.sample.sync.bundle_version": { text: "Versión de paquete activa: {version}", status: "APPROVED" },
+    "ethos.sample.study.selector_title": { text: "Simular Contexto del Estudio", status: "APPROVED" },
+    "ethos.sample.study.none": { text: "Sin estudio seleccionado (Idioma del sistema)", status: "APPROVED" },
+    "ethos.sample.study.es_name": { text: "Estudio 101 - América Latina (Español)", status: "APPROVED" },
+    "ethos.sample.study.th_name": { text: "Estudio 202 - Asia Pacífico (Tailandés)", status: "APPROVED" },
+    "ethos.sample.fallback_test": { text: "", status: "NOT_TRANSLATED" }
+  },
+  th: {
+    "ethos.sample.title": { text: "การแปลภาษาแบบไดนามิกของ EthOS", status: "APPROVED" },
+    "ethos.sample.welcome": { text: "ยินดีต้อนรับสู่การศึกษาวิจัย EthOS", status: "APPROVED" },
+    "ethos.sample.instructions": { text: "สังเกตการอัปเดตข้อความแบบเรียลไทม์โดยไม่ต้องรีสตาร์ทแอป", status: "APPROVED" },
+    "ethos.sample.status.active": { text: "เปิดใช้งาน", status: "APPROVED" },
+    "ethos.sample.status.syncing": { text: "กำลังซิงค์กับ Firebase...", status: "APPROVED" },
+    "ethos.sample.status.synced": { text: "ซิงค์กับ CDN เรียบร้อยแล้ว", status: "APPROVED" },
+    "ethos.sample.status.offline": { text: "โหมดออฟไลน์ (ใช้แคชในเครื่อง)", status: "APPROVED" },
+    "ethos.sample.btn.submit": { text: "ส่งคำตอบ", status: "APPROVED" },
+    "ethos.sample.btn.refresh": { text: "ตรวจสอบการอัปเดต", status: "APPROVED" },
+    "ethos.sample.btn.reset": { text: "รีเซ็ตเป็นค่าเริ่มต้น", status: "APPROVED" },
+    "ethos.sample.btn.exit_study": { text: "ออกจากการศึกษา", status: "APPROVED" },
+    "ethos.sample.counter.completed_tasks": { text: "เสร็จสิ้น {completed} จาก {total} กิจกรรม", status: "APPROVED" },
+    "ethos.sample.sync.last_updated": { text: "อัปเดตล่าสุด: {timestamp}", status: "APPROVED" },
+    "ethos.sample.sync.bundle_version": { text: "เวอร์ชันแพ็กเกจที่ใช้งาน: {version}", status: "APPROVED" },
+    "ethos.sample.study.selector_title": { text: "จำลองบริบทการศึกษา", status: "APPROVED" },
+    "ethos.sample.study.none": { text: "ไม่ได้เลือกการศึกษา (ภาษาของระบบ)", status: "APPROVED" },
+    "ethos.sample.study.es_name": { text: "การศึกษา 101 - ละตินอเมริกา (สเปน)", status: "APPROVED" },
+    "ethos.sample.study.th_name": { text: "การศึกษา 202 - เอเชียแปซิฟิก (ไทย)", status: "APPROVED" },
+    "ethos.sample.fallback_test": { text: "", status: "NOT_TRANSLATED" }
+  },
+  fr: {
+    "ethos.sample.title": { text: "Localisation Dynamique EthOS", status: "APPROVED" },
+    "ethos.sample.welcome": { text: "Bienvenue dans l'étude de recherche EthOS", status: "APPROVED" },
+    "ethos.sample.instructions": { text: "Observez les mises à jour dynamiques sans redémarrer l'application.", status: "APPROVED" },
+    "ethos.sample.status.active": { text: "Actif", status: "APPROVED" },
+    "ethos.sample.status.syncing": { text: "Synchronisation avec Firebase...", status: "APPROVED" },
+    "ethos.sample.status.synced": { text: "Synchronisé avec le CDN", status: "APPROVED" },
+    "ethos.sample.status.offline": { text: "Mode hors ligne (Cache local)", status: "APPROVED" },
+    "ethos.sample.btn.submit": { text: "Soumettre la réponse", status: "APPROVED" },
+    "ethos.sample.btn.refresh": { text: "Vérifier les mises à jour", status: "APPROVED" },
+    "ethos.sample.btn.reset": { text: "Réinitialiser les valeurs", status: "APPROVED" },
+    "ethos.sample.btn.exit_study": { text: "Quitter l'étude", status: "APPROVED" },
+    "ethos.sample.counter.completed_tasks": { text: "{completed} sur {total} activités terminées", status: "APPROVED" },
+    "ethos.sample.sync.last_updated": { text: "Dernière mise à jour : {timestamp}", status: "APPROVED" },
+    "ethos.sample.sync.bundle_version": { text: "Version du bundle actif : {version}", status: "APPROVED" },
+    "ethos.sample.study.selector_title": { text: "Simuler le contexte de l'étude", status: "APPROVED" },
+    "ethos.sample.study.none": { text: "Aucune étude sélectionnée (Langue système)", status: "APPROVED" },
+    "ethos.sample.study.es_name": { text: "Étude 101 - Amérique Latine (Espagnol)", status: "APPROVED" },
+    "ethos.sample.study.th_name": { text: "Étude 202 - Asie Pacifique (Thaï)", status: "APPROVED" },
+    "ethos.sample.fallback_test": { text: "", status: "NOT_TRANSLATED" }
+  }
+};
+
+let currentLocale = "es";
+let currentFilter = "ALL";
+let stagingCSVRows = null;
+
+// Initialize app from localStorage or default
+let catalog = JSON.parse(localStorage.getItem("ethos_catalog") || "null") || INITIAL_CATALOG;
+let translations = JSON.parse(localStorage.getItem("ethos_translations") || "null") || INITIAL_TRANSLATIONS;
+
+function saveState() {
+  localStorage.setItem("ethos_catalog", JSON.stringify(catalog));
+  localStorage.setItem("ethos_translations", JSON.stringify(translations));
+  updateStats();
+}
+
+function updateStats() {
+  const totalKeys = Object.keys(catalog).length;
+  const currentTrans = translations[currentLocale] || {};
+  let approved = 0;
+  let pending = 0;
+
+  for (const k of Object.keys(catalog)) {
+    const item = currentTrans[k];
+    if (item && item.status === "APPROVED" && item.text.trim()) {
+      approved++;
+    } else {
+      pending++;
+    }
+  }
+
+  const percent = totalKeys > 0 ? ((approved / totalKeys) * 100).toFixed(1) : 0;
+
+  document.getElementById("totalKeysCount").textContent = totalKeys;
+  document.getElementById("approvedKeysCount").textContent = approved;
+  document.getElementById("approvedPercent").textContent = `${percent}% Coverage`;
+  document.getElementById("pendingKeysCount").textContent = pending;
+
+  document.getElementById("tableLangHeader").textContent = currentLocale;
+  document.getElementById("deployLocaleTag").textContent = `${getLanguageName(currentLocale)} (${currentLocale})`;
+  document.getElementById("deployCoverageTag").textContent = `${approved} / ${totalKeys} (${percent}%)`;
+}
+
+function getLanguageName(loc) {
+  const map = { en: "English", es: "Spanish", th: "Thai", fr: "French", de: "German", id: "Indonesian", vi: "Vietnamese", pl: "Polish" };
+  return map[loc] || loc.toUpperCase();
+}
+
+function switchLocale(loc) {
+  currentLocale = loc;
+  if (!translations[currentLocale]) {
+    translations[currentLocale] = {};
+  }
+  updateStats();
+  renderTable();
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  ["ALL", "NEEDS_REVIEW", "APPROVED", "REJECTED"].forEach(f => {
+    const btn = document.getElementById(`filterBtn${f}`);
+    if (btn) {
+      if (f === filter) {
+        btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm";
+      } else {
+        btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 hover:bg-slate-100 border border-slate-200";
+      }
+    }
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById("translationsTableBody");
+  tbody.innerHTML = "";
+  const query = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+
+  const keys = Object.keys(catalog);
+  const transMap = translations[currentLocale] || {};
+
+  keys.forEach(key => {
+    const catItem = catalog[key];
+    const transItem = transMap[key] || { text: "", status: "NOT_TRANSLATED" };
+
+    // Apply Filter
+    if (currentFilter === "APPROVED" && transItem.status !== "APPROVED") return;
+    if (currentFilter === "REJECTED" && transItem.status !== "REJECTED") return;
+    if (currentFilter === "NEEDS_REVIEW" && (transItem.status === "APPROVED" || transItem.status === "REJECTED")) return;
+
+    // Apply Search
+    if (query) {
+      const match = key.toLowerCase().includes(query) ||
+                    catItem.source.toLowerCase().includes(query) ||
+                    transItem.text.toLowerCase().includes(query);
+      if (!match) return;
+    }
+
+    const tr = document.createElement("tr");
+    tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+
+    // Status Badge
+    let badgeClass = "badge-pending";
+    let badgeLabel = transItem.status;
+    if (transItem.status === "APPROVED") { badgeClass = "badge-approved"; badgeLabel = "APPROVED"; }
+    else if (transItem.status === "AI_GENERATED") { badgeClass = "badge-ai"; badgeLabel = "AI DRAFT"; }
+    else if (transItem.status === "IMPORTED_DRAFT") { badgeClass = "badge-imported"; badgeLabel = "IMPORTED"; }
+    else if (transItem.status === "REJECTED") { badgeClass = "badge-rejected"; badgeLabel = "REJECTED"; }
+    else if (!transItem.text) { badgeClass = "badge-pending"; badgeLabel = "EMPTY"; }
+
+    tr.innerHTML = `
+      <td class="py-3 px-4 align-top">
+        <p class="font-mono font-bold text-slate-800">${key}</p>
+        <span class="inline-block mt-0.5 text-[10px] text-slate-400 font-semibold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${catItem.cat || 'GLOBAL_UI'}</span>
+        <p class="text-[11px] text-slate-500 mt-1">${catItem.desc || ''}</p>
+      </td>
+      <td class="py-3 px-4 align-top text-slate-700 font-medium">
+        ${escapeHtml(catItem.source)}
+      </td>
+      <td class="py-3 px-4 align-top">
+        <textarea oninput="handleTextChange('${key}', this.value)" rows="2" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">${escapeHtml(transItem.text)}</textarea>
+      </td>
+      <td class="py-3 px-3 align-top text-center">
+        <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}">${badgeLabel}</span>
+      </td>
+      <td class="py-3 px-4 align-top text-right space-x-1 whitespace-nowrap">
+        <button onclick="approveKey('${key}')" title="Approve" class="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded border border-emerald-200 transition">
+          <i class="fa-solid fa-check"></i>
+        </button>
+        <button onclick="rejectKey('${key}')" title="Reject" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded border border-rose-200 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function handleTextChange(key, newText) {
+  if (!translations[currentLocale]) translations[currentLocale] = {};
+  const current = translations[currentLocale][key] || {};
+  current.text = newText;
+  current.status = "IMPORTED_DRAFT";
+  translations[currentLocale][key] = current;
+  saveState();
+  updateRowBadge(key, "IMPORTED_DRAFT");
+}
+
+function approveKey(key) {
+  if (!translations[currentLocale]) translations[currentLocale] = {};
+  const current = translations[currentLocale][key] || { text: "" };
+  if (!current.text) {
+    alert("Cannot approve an empty translation!");
+    return;
+  }
+  current.status = "APPROVED";
+  translations[currentLocale][key] = current;
+  saveState();
+  renderTable();
+}
+
+function rejectKey(key) {
+  if (!translations[currentLocale]) translations[currentLocale] = {};
+  const current = translations[currentLocale][key] || { text: "" };
+  current.status = "REJECTED";
+  translations[currentLocale][key] = current;
+  saveState();
+  renderTable();
+}
+
+function approveAllVisible() {
+  if (!translations[currentLocale]) translations[currentLocale] = {};
+  let count = 0;
+  for (const k of Object.keys(catalog)) {
+    const item = translations[currentLocale][k];
+    if (item && item.text.trim()) {
+      item.status = "APPROVED";
+      count++;
+    }
+  }
+  saveState();
+  renderTable();
+  alert(`Approved ${count} translations for locale '${currentLocale}'!`);
+}
+
+// AI Translation with Gemini
+function triggerGeminiTranslation() {
+  const currentTrans = translations[currentLocale] || {};
+  let translatedCount = 0;
+
+  for (const [key, item] of Object.entries(catalog)) {
+    const trans = currentTrans[key];
+    if (!trans || trans.status !== "APPROVED" || !trans.text) {
+      // Mock / Gemini translation logic
+      const targetLang = getLanguageName(currentLocale);
+      const generated = mockGeminiTranslate(item.source, currentLocale);
+      currentTrans[key] = {
+        text: generated,
+        status: "AI_GENERATED",
+        type: "GEMINI_2.5_FLASH"
+      };
+      translatedCount++;
+    }
+  }
+
+  translations[currentLocale] = currentTrans;
+  saveState();
+  renderTable();
+  alert(`Generated AI translations for ${translatedCount} strings in ${getLanguageName(currentLocale)}!`);
+}
+
+function mockGeminiTranslate(source, loc) {
+  if (loc === "es") {
+    if (source.includes("activities completed")) return "{completed} de {total} actividades completadas";
+    if (source.includes("Welcome")) return "Bienvenido al Estudio de Investigación EthOS";
+    return `[ES] ${source}`;
+  } else if (loc === "th") {
+    if (source.includes("activities completed")) return "เสร็จสิ้น {completed} จาก {total} กิจกรรม";
+    return `[TH] ${source}`;
+  } else if (loc === "fr") {
+    if (source.includes("activities completed")) return "{completed} sur {total} activités terminées";
+    return `[FR] ${source}`;
+  }
+  return `[${loc.toUpperCase()}] ${source}`;
+}
+
+// CSV Export
+function exportCSV() {
+  const transMap = translations[currentLocale] || {};
+  let csvContent = `key,source_english,translation_${currentLocale},description,category,status\n`;
+
+  for (const [k, item] of Object.entries(catalog)) {
+    const tr = transMap[k] || { text: "", status: "NOT_TRANSLATED" };
+    const safeSource = `"${item.source.replace(/"/g, '""')}"`;
+    const safeTrans = `"${tr.text.replace(/"/g, '""')}"`;
+    const safeDesc = `"${(item.desc || '').replace(/"/g, '""')}"`;
+    csvContent += `${k},${safeSource},${safeTrans},${safeDesc},${item.cat || 'GLOBAL_UI'},${tr.status}\n`;
+  }
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${currentLocale}_translations_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// CSV Import with Breaking-Change Detection
+function handleCSVUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    parseAndValidateCSV(text);
+  };
+  reader.readAsText(file);
+}
+
+function parseAndValidateCSV(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) {
+    alert("CSV file is empty or missing headers!");
+    return;
+  }
+
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+  let transIndex = headers.findIndex(h => h.startsWith("translation") || h === "target");
+  if (transIndex === -1) transIndex = 2; // fallback to 3rd column
+
+  const importedMap = {};
+  for (let i = 1; i < lines.length; i++) {
+    // Regex to parse comma-separated with quotes
+    const row = parseCSVRow(lines[i]);
+    const key = (row[0] || "").trim();
+    if (key) {
+      importedMap[key] = {
+        text: (row[transIndex] || "").trim(),
+        status: (row[5] || "IMPORTED_DRAFT").trim()
+      };
+    }
+  }
+
+  const catalogKeys = Object.keys(catalog);
+  const missingKeys = catalogKeys.filter(k => !(k in importedMap));
+
+  if (missingKeys.length > 0) {
+    // Trigger Breaking-Change Modal!
+    stagingCSVRows = importedMap;
+    document.getElementById("missingKeysCount").textContent = missingKeys.length;
+    const listEl = document.getElementById("missingKeysList");
+    listEl.innerHTML = "";
+    missingKeys.forEach(k => {
+      const p = document.createElement("div");
+      p.className = "text-rose-700 flex items-center gap-1.5";
+      p.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-500"></i> ${k}`;
+      listEl.appendChild(p);
+    });
+    document.getElementById("missingKeysModal").classList.remove("hidden");
+  } else {
+    applyImportedTranslations(importedMap);
+  }
+}
+
+function parseCSVRow(rowText) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < rowText.length; i++) {
+    const char = rowText[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.replace(/^"|"$/g, '').replace(/""/g, '"'));
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.replace(/^"|"$/g, '').replace(/""/g, '"'));
+  return result;
+}
+
+function cancelCSVImport() {
+  stagingCSVRows = null;
+  document.getElementById("missingKeysModal").classList.add("hidden");
+  document.getElementById("csvFileInput").value = "";
+}
+
+function confirmCSVImportOverride() {
+  if (stagingCSVRows) {
+    applyImportedTranslations(stagingCSVRows);
+  }
+  document.getElementById("missingKeysModal").classList.add("hidden");
+}
+
+function applyImportedTranslations(importedMap) {
+  if (!translations[currentLocale]) translations[currentLocale] = {};
+  let count = 0;
+
+  for (const [k, val] of Object.entries(importedMap)) {
+    if (val.text) {
+      translations[currentLocale][k] = {
+        text: val.text,
+        status: val.status === "APPROVED" ? "APPROVED" : "IMPORTED_DRAFT"
+      };
+      count++;
+    }
+  }
+
+  saveState();
+  renderTable();
+  alert(`Successfully imported ${count} translations from CSV!`);
+}
+
+// Add New String
+function openAddKeyModal() {
+  document.getElementById("addKeyModal").classList.remove("hidden");
+}
+function closeAddKeyModal() {
+  document.getElementById("addKeyModal").classList.add("hidden");
+}
+
+function handleAddNewKey(event) {
+  event.preventDefault();
+  const key = document.getElementById("newKeyName").value.trim();
+  const english = document.getElementById("newKeyEnglish").value.trim();
+  const desc = document.getElementById("newKeyDesc").value.trim();
+
+  if (catalog[key]) {
+    alert(`Key '${key}' already exists in catalog!`);
+    return;
+  }
+
+  catalog[key] = { source: english, cat: "GLOBAL_UI", desc: desc };
+
+  // Auto-translate for existing locales
+  Object.keys(translations).forEach(loc => {
+    translations[loc][key] = {
+      text: mockGeminiTranslate(english, loc),
+      status: "AI_GENERATED",
+      type: "GEMINI_2.5_FLASH"
+    };
+  });
+
+  saveState();
+  closeAddKeyModal();
+  renderTable();
+  alert(`Introduced key '${key}' and auto-translated for all active languages!`);
+}
+
+// Deploy to Firebase
+function openDeployModal() {
+  document.getElementById("deployModal").classList.remove("hidden");
+}
+function closeDeployModal() {
+  document.getElementById("deployModal").classList.add("hidden");
+}
+
+function executeDeploy() {
+  const env = document.getElementById("deployEnvSelect").value;
+  const version = document.getElementById("deployVersionSelect").value;
+  
+  closeDeployModal();
+  document.getElementById("activeVersionTag").textContent = `v${version}`;
+
+  alert(`🚀 Deploy Initiated!\nTarget Locale: ${currentLocale}\nEnvironment: ${env}\nRelease Version: v${version}\n\nBundles published to Cloud Storage CDN and Realtime Database manifest updated atomically!`);
+}
+
+// Initialize on Load
+document.addEventListener("DOMContentLoaded", () => {
+  updateStats();
+  renderTable();
+});

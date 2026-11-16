@@ -1,0 +1,20 @@
+key,source_english,translation_es,description,category,status
+ethos.sample.btn.exit_study,Exit Study,Salir del Estudio,Button to leave study context and return to device language,GLOBAL_UI,APPROVED
+ethos.sample.btn.refresh,Check for Updates,Buscar Actualizaciones,Secondary action button to re-check manifest,GLOBAL_UI,APPROVED
+ethos.sample.btn.reset,Reset to Defaults,Restablecer Valores,Button to clear cache and reset state,GLOBAL_UI,APPROVED
+ethos.sample.btn.submit,Submit Response,Enviar Respuesta,Primary action button to submit participant response,GLOBAL_UI,APPROVED
+ethos.sample.counter.completed_tasks,{completed} of {total} activities completed,{completed} de {total} actividades completadas,Activity progress counter with positional placeholders,GLOBAL_UI,APPROVED
+ethos.sample.fallback_test,This text verifies fallback when untranslated in target locale.,,Key intentionally left untranslated in non-English locales to test Tier 2 fallback,GLOBAL_UI,NOT_TRANSLATED
+ethos.sample.instructions,Observe real-time dynamic string updates without app restart.,Observe actualizaciones de cadenas en tiempo real sin reiniciar la aplicación.,Exploratory instructions under the header,GLOBAL_UI,APPROVED
+ethos.sample.status.active,Active,Activo,Indicator label when bundle is active,GLOBAL_UI,APPROVED
+ethos.sample.status.offline,Offline Mode (Using Cache),Modo sin conexión (Usando caché),Indicator label when offline,GLOBAL_UI,APPROVED
+ethos.sample.status.synced,Synchronized with CDN,Sincronizado con CDN,Indicator label when client has verified latest bundle,GLOBAL_UI,APPROVED
+ethos.sample.status.syncing,Syncing with Firebase...,Sincronizando con Firebase...,Indicator label when synchronizing manifest or downloading bundle,GLOBAL_UI,APPROVED
+ethos.sample.study.es_name,Study 101 - Latin America (Spanish),Estudio 101 - América Latina (Español),Spanish test study title,GLOBAL_UI,APPROVED
+ethos.sample.study.none,No Study Selected (System Language),Sin estudio seleccionado (Idioma del sistema),Option for pre-project device default,GLOBAL_UI,APPROVED
+ethos.sample.study.selector_title,Simulate Study Context,Simular Contexto del Estudio,Section header for study switcher,GLOBAL_UI,APPROVED
+ethos.sample.study.th_name,Study 202 - Asia Pacific (Thai),Estudio 202 - Asia Pacífico (Tailandés),Thai test study title,GLOBAL_UI,APPROVED
+ethos.sample.sync.bundle_version,Active Bundle Version: {version},Versión del Paquete Activo: {version},Metadata banner displaying active bundle version,GLOBAL_UI,APPROVED
+ethos.sample.sync.last_updated,Last updated: {timestamp},Última actualización: {timestamp},Metadata banner displaying last sync timestamp,GLOBAL_UI,APPROVED
+ethos.sample.title,EthOS Dynamic Localization,Localización Dinámica EthOS,App bar title for the sample application,GLOBAL_UI,APPROVED
+ethos.sample.welcome,Welcome to EthOS Research Study,Bienvenido al Estudio de Investigación EthOS,Main welcome banner heading,GLOBAL_UI,APPROVED

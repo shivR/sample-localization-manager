@@ -165,6 +165,87 @@ firebase deploy --only database --project <FIREBASE_PROJECT_ID>
 firebase deploy --only storage --project <FIREBASE_PROJECT_ID>
 ```
 
+### 2.6 AI Translation Setup with Google Gemini
+The manager integrates **Google Gemini 2.5 Flash** for rapid, culturally authentic, and mobile-concise translations while strictly safeguarding ICU placeholders (e.g. `{completed}`, `{total}`) and the protected proper noun `EthOS`.
+
+#### Step 1: Obtain API Key
+1. Visit [Google AI Studio](https://aistudio.google.com/).
+2. Click **"Get API key"** and create a free key.
+3. Export the key in your terminal or `.env`:
+   ```bash
+   export GEMINI_API_KEY="your-gemini-api-key-here"
+   ```
+
+#### Step 2: Auto-Translate a New or Existing Locale
+```bash
+# Translate a brand-new language (e.g. French):
+python3 scripts/ai/gemini_translator.py --locale fr --name French
+
+# Auto-translate missing strings in an existing language (e.g. Spanish):
+python3 scripts/ai/gemini_translator.py --locale es --name Spanish
+```
+> [!NOTE]
+> All AI-generated strings receive the status `AI_GENERATED`. In accordance with our governance invariants, `compiler.py` will not package `AI_GENERATED` strings into production bundles until they have been reviewed and approved.
+
+### 2.7 Google Sheets CSV Round-Trip Translation
+For workflows involving external human linguists or spreadsheet reviews:
+
+#### Step 1: Export Strings to CSV
+```bash
+python3 scripts/exchange/csv_exchange.py --export --locale es
+```
+Generates an RFC 4180 CSV: `translation-store/exchange/es_translations_<timestamp>.csv` containing:
+`key, source_english, translation_es, description, category, status`
+
+#### Step 2: Translate in Google Sheets
+Import the CSV into Google Sheets, provide or edit translations in the target column, and download as CSV.
+
+#### Step 3: Import with Breaking-Change Detection
+```bash
+python3 scripts/exchange/csv_exchange.py --import-file path/to/translated.csv --locale es
+```
+- **Automated Breaking-Change Protection:** If any existing catalog keys are missing from the uploaded CSV, the import is **strictly blocked** to prevent production string loss:
+  ```
+  ⚠️ BREAKING CHANGE DETECTED: MISSING CATALOG KEYS
+  The imported CSV is missing 2 keys present in the master catalog:
+    - ethos.sample.btn.exit_study (English: 'Exit Study')
+    - ethos.sample.btn.refresh (English: 'Check for Updates')
+  ```
+- **User Override:** If you intentionally want to unpublish/delete these keys and have them fall back to English, re-run with the explicit confirmation flag:
+  ```bash
+  python3 scripts/exchange/csv_exchange.py --import-file path/to/translated.csv --locale es --allow-deletions
+  ```
+
+### 2.8 Web Review Dashboard (GitHub Pages / Local)
+The repository includes a complete, responsive Single Page Application in `docs/index.html`:
+
+```bash
+# Serve dashboard locally
+python3 -m http.server 8080 --directory docs/
+# Open: http://localhost:8080
+```
+
+#### Operational Features:
+- **Locale Switcher**: Switch between active languages or add a new locale with 1 click.
+- **Add New String**: Modal to introduce a new semantic key and English source text with automatic translation across all active languages.
+- **Auto-Translate with Gemini**: Batch-translate all unapproved strings.
+- **Export & Import CSV**: Direct Google Sheets file download and drag-and-drop upload with missing-keys warning dialogs.
+- **Interactive Review Table**: In-line text editing, single-key `[Approve]` / `[Reject]`, and `[Approve All Visible]`.
+- **1-Click Firebase Deployer**: Bumps the semantic version (`1.0.0` -> `1.1.0`), runs dual-gate validation, uploads immutable bundles to Cloud Storage CDN, and atomically updates the Realtime Database manifest.
+
+### 2.9 Cross-Project PR Governance Sentinel & Escape Hatch
+When mobile engineers add or modify string keys in `iosv2` or `androidv2`:
+
+1. **Automated PR Check**:
+   - The workflow runs `.github/workflows/pr-localization-sentinel.yml`.
+   - Compares the PR diff against `master-catalog.json`.
+2. **Default Blocking Behavior**:
+   - If an unregistered key is detected, the check **fails and blocks the PR from merging**.
+   - A sticky bot comment is posted on the PR with closest matching catalog keys.
+3. **Emergency Escape Hatch**:
+   - For urgent hotfixes, an engineer can add the PR label `localization-override` (or include `[override-localization]` in the PR description).
+   - The check passes to unblock merge, while automatically sending an event to `ethos-localization` to create a **tracked technical debt GitHub Issue**.
+
 ---
 
 # 3. Project 2: Production iOS Application (`iosv2`)

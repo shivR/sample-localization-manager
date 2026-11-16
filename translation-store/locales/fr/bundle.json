@@ -1,0 +1,178 @@
+{
+  "locale": "fr",
+  "name": "French",
+  "translations": {
+    "ethos.sample.title": {
+      "key": "ethos.sample.title",
+      "source_text": "EthOS Dynamic Localization",
+      "translated_text": "Localisation Dynamique EthOS",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.welcome": {
+      "key": "ethos.sample.welcome",
+      "source_text": "Welcome to EthOS Research Study",
+      "translated_text": "Bienvenue dans l'étude de recherche EthOS",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.instructions": {
+      "key": "ethos.sample.instructions",
+      "source_text": "Observe real-time dynamic string updates without app restart.",
+      "translated_text": "[FR] Observe real-time dynamic string updates without app restart.",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.status.active": {
+      "key": "ethos.sample.status.active",
+      "source_text": "Active",
+      "translated_text": "Actif",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.status.syncing": {
+      "key": "ethos.sample.status.syncing",
+      "source_text": "Syncing with Firebase...",
+      "translated_text": "[FR] Syncing with Firebase...",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.status.synced": {
+      "key": "ethos.sample.status.synced",
+      "source_text": "Synchronized with CDN",
+      "translated_text": "[FR] Synchronized with CDN",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.status.offline": {
+      "key": "ethos.sample.status.offline",
+      "source_text": "Offline Mode (Using Cache)",
+      "translated_text": "[FR] Offline Mode (Using Cache)",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.btn.submit": {
+      "key": "ethos.sample.btn.submit",
+      "source_text": "Submit Response",
+      "translated_text": "[FR] Submit Response",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.btn.refresh": {
+      "key": "ethos.sample.btn.refresh",
+      "source_text": "Check for Updates",
+      "translated_text": "[FR] Check for Updates",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.btn.reset": {
+      "key": "ethos.sample.btn.reset",
+      "source_text": "Reset to Defaults",
+      "translated_text": "[FR] Reset to Defaults",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.btn.exit_study": {
+      "key": "ethos.sample.btn.exit_study",
+      "source_text": "Exit Study",
+      "translated_text": "[FR] Exit Study",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.counter.completed_tasks": {
+      "key": "ethos.sample.counter.completed_tasks",
+      "source_text": "{completed} of {total} activities completed",
+      "translated_text": "{completed} sur {total} activités terminées",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.sync.last_updated": {
+      "key": "ethos.sample.sync.last_updated",
+      "source_text": "Last updated: {timestamp}",
+      "translated_text": "[FR] Last updated: {timestamp}",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.sync.bundle_version": {
+      "key": "ethos.sample.sync.bundle_version",
+      "source_text": "Active Bundle Version: {version}",
+      "translated_text": "[FR] Active Bundle Version: {version}",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.study.selector_title": {
+      "key": "ethos.sample.study.selector_title",
+      "source_text": "Simulate Study Context",
+      "translated_text": "[FR] Simulate Study Context",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.study.none": {
+      "key": "ethos.sample.study.none",
+      "source_text": "No Study Selected (System Language)",
+      "translated_text": "[FR] No Study Selected (System Language)",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.study.es_name": {
+      "key": "ethos.sample.study.es_name",
+      "source_text": "Study 101 - Latin America (Spanish)",
+      "translated_text": "[FR] Study 101 - Latin America (Spanish)",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.study.th_name": {
+      "key": "ethos.sample.study.th_name",
+      "source_text": "Study 202 - Asia Pacific (Thai)",
+      "translated_text": "[FR] Study 202 - Asia Pacific (Thai)",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.fallback_test": {
+      "key": "ethos.sample.fallback_test",
+      "source_text": "This text verifies fallback when untranslated in target locale.",
+      "translated_text": "[FR] This text verifies fallback when untranslated in target locale.",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-16T12:25:57Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    }
+  },
+  "updated_at": "2026-11-16T12:25:57Z"
+}
