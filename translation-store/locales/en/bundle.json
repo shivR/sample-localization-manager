@@ -134,6 +134,16 @@
       "translated_text": "This text verifies fallback when untranslated in target locale.",
       "translation_status": "APPROVED",
       "translator_type": "HUMAN_LINGUIST"
+    },
+    "ethos.sample.question.mood": {
+      "key": "ethos.sample.question.mood",
+      "source_text": "How was your mood today?",
+      "translated_text": "How was your mood today?",
+      "translation_status": "APPROVED",
+      "translator_type": "SOURCE_INGEST",
+      "generated_at": "2026-11-17T13:00:23Z",
+      "notes": "Ingested from sample-localization-ios commit 6258476"
     }
-  }
+  },
+  "updated_at": "2026-11-17T13:00:23Z"
 }

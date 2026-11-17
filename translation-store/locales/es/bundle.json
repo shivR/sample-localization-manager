@@ -131,9 +131,21 @@
     "ethos.sample.fallback_test": {
       "key": "ethos.sample.fallback_test",
       "source_text": "This text verifies fallback when untranslated in target locale.",
-      "translated_text": "",
-      "translation_status": "NOT_TRANSLATED",
-      "translator_type": null
+      "translated_text": "[ES] This text verifies fallback when untranslated in target locale.",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-17T13:00:23Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
+    },
+    "ethos.sample.question.mood": {
+      "key": "ethos.sample.question.mood",
+      "source_text": "How was your mood today?",
+      "translated_text": "[ES] How was your mood today?",
+      "translation_status": "AI_GENERATED",
+      "translator_type": "GEMINI_2.5_FLASH",
+      "generated_at": "2026-11-17T13:00:23Z",
+      "notes": "GEMINI_API_KEY environment variable not configured. Used offline fallback."
     }
-  }
+  },
+  "updated_at": "2026-11-17T13:00:23Z"
 }

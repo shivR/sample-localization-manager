@@ -85,21 +85,28 @@
       "category": "GLOBAL_UI",
       "source_text": "{completed} of {total} activities completed",
       "description": "Activity progress counter with positional placeholders",
-      "placeholders": ["completed", "total"]
+      "placeholders": [
+        "completed",
+        "total"
+      ]
     },
     "ethos.sample.sync.last_updated": {
       "key": "ethos.sample.sync.last_updated",
       "category": "GLOBAL_UI",
       "source_text": "Last updated: {timestamp}",
       "description": "Metadata banner displaying last sync timestamp",
-      "placeholders": ["timestamp"]
+      "placeholders": [
+        "timestamp"
+      ]
     },
     "ethos.sample.sync.bundle_version": {
       "key": "ethos.sample.sync.bundle_version",
       "category": "GLOBAL_UI",
       "source_text": "Active Bundle Version: {version}",
       "description": "Metadata banner displaying active bundle version",
-      "placeholders": ["version"]
+      "placeholders": [
+        "version"
+      ]
     },
     "ethos.sample.study.selector_title": {
       "key": "ethos.sample.study.selector_title",
@@ -135,6 +142,14 @@
       "source_text": "This text verifies fallback when untranslated in target locale.",
       "description": "Key intentionally left untranslated in non-English locales to test Tier 2 fallback",
       "placeholders": []
+    },
+    "ethos.sample.question.mood": {
+      "classification": "GLOBAL_UI",
+      "source_text": "How was your mood today?",
+      "description": "Auto-ingested from sample-localization-ios commit 6258476",
+      "placeholders": [],
+      "added_at": "2026-11-17T13:00:23Z"
     }
-  }
+  },
+  "updated_at": "2026-11-17T13:00:23Z"
 }
