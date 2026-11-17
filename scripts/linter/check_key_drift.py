@@ -168,6 +168,41 @@ def check_override_present(labels: list, pr_body: str) -> bool:
         return True
     return False
 
+def send_github_dispatch(url: str, payload: dict, token: str) -> tuple:
+    data = json.dumps(payload).encode("utf-8")
+    auth_schemes = ["Bearer", "token"] if token.startswith("github_pat_") else ["token", "Bearer"]
+    
+    last_status = 0
+    last_body = ""
+    for scheme in auth_schemes:
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Accept": "application/vnd.github.v3+json",
+                "Authorization": f"{scheme} {token}",
+                "User-Agent": "EthOS-Localization-Dispatcher/1.0",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 204):
+                    return resp.status, ""
+                last_status = resp.status
+        except urllib.error.HTTPError as e:
+            last_status = e.code
+            last_body = e.read().decode("utf-8", errors="replace")
+            if e.code != 401:
+                break
+        except Exception as e:
+            last_status = 0
+            last_body = str(e)
+            break
+            
+    return last_status, last_body
+
 def dispatch_debt_issue(manager_repo: str, repo: str, pr_number: str, unregistered_keys: list, author: str, token: str):
     if not token:
         print("  [INFO] No LOCALIZATION_DISPATCH_TOKEN set. Skipping automated issue creation.")
@@ -183,22 +218,22 @@ def dispatch_debt_issue(manager_repo: str, repo: str, pr_number: str, unregister
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {token}",
-            "Content-Type": "application/json"
-        },
-        method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status in (200, 204):
-                print(f"  [SUCCESS] Dispatched localization debt alert to '{manager_repo}'!")
-    except Exception as e:
-        print(f"  [WARN] Failed to dispatch debt alert to {manager_repo}: {e}", file=sys.stderr)
+    status, body = send_github_dispatch(url, payload, token)
+    if status in (200, 204):
+        print(f"  [SUCCESS] Dispatched localization debt alert to '{manager_repo}'!")
+    elif status == 403:
+        print(f"  [WARN] Failed to dispatch debt alert to {manager_repo}: HTTP 403 Forbidden", file=sys.stderr)
+        if body:
+            print(f"  GitHub API Response: {body.strip()}", file=sys.stderr)
+        print("\n  💡 How to resolve GitHub HTTP 403 Forbidden for LOCALIZATION_DISPATCH_TOKEN:", file=sys.stderr)
+        print(f"  1. If using a Fine-Grained Personal Access Token (starts with 'github_pat_'):", file=sys.stderr)
+        print(f"     - Under 'Repository access', select 'Only select repositories' and add '{manager_repo}'.", file=sys.stderr)
+        print(f"     - Under 'Permissions' -> 'Repository permissions', set 'Contents' to 'Read and write'.", file=sys.stderr)
+        print(f"  2. If using a Classic Personal Access Token (starts with 'ghp_'):", file=sys.stderr)
+        print(f"     - Ensure the 'repo' scope checkbox is selected (full control of repositories).", file=sys.stderr)
+        print(f"  3. Note: The automatic GitHub Actions '${{{{ secrets.GITHUB_TOKEN }}}}' cannot be used across repositories.", file=sys.stderr)
+    else:
+        print(f"  [WARN] Failed to dispatch debt alert to {manager_repo} (HTTP {status}): {body}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(description="Cross-Project Localization Key Drift Sentinel")

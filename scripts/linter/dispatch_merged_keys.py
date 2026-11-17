@@ -104,6 +104,41 @@ def extract_merged_keys_android(diff_lines: list) -> dict:
 
     return key_map
 
+def send_github_dispatch(url: str, payload: dict, token: str) -> tuple:
+    data = json.dumps(payload).encode("utf-8")
+    auth_schemes = ["Bearer", "token"] if token.startswith("github_pat_") else ["token", "Bearer"]
+    
+    last_status = 0
+    last_body = ""
+    for scheme in auth_schemes:
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Accept": "application/vnd.github.v3+json",
+                "Authorization": f"{scheme} {token}",
+                "User-Agent": "EthOS-Localization-Dispatcher/1.0",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 204):
+                    return resp.status, ""
+                last_status = resp.status
+        except urllib.error.HTTPError as e:
+            last_status = e.code
+            last_body = e.read().decode("utf-8", errors="replace")
+            if e.code != 401:
+                break
+        except Exception as e:
+            last_status = 0
+            last_body = str(e)
+            break
+            
+    return last_status, last_body
+
 def dispatch_ingest_event(manager_repo: str, repo: str, commit_sha: str, commit_msg: str, new_keys: list, token: str):
     if not token:
         print("\n  [INFO] No LOCALIZATION_DISPATCH_TOKEN set.")
@@ -123,22 +158,22 @@ def dispatch_ingest_event(manager_repo: str, repo: str, commit_sha: str, commit_
         }
     }
 
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {token}",
-            "Content-Type": "application/json"
-        },
-        method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status in (200, 204):
-                print(f"\n  [SUCCESS] Dispatched {len(new_keys)} new key(s) to '{manager_repo}' for automated ingestion!")
-    except Exception as e:
-        print(f"\n  [WARN] Failed to dispatch ingest event to {manager_repo}: {e}", file=sys.stderr)
+    status, body = send_github_dispatch(url, payload, token)
+    if status in (200, 204):
+        print(f"\n  [SUCCESS] Dispatched {len(new_keys)} new key(s) to '{manager_repo}' for automated ingestion!")
+    elif status == 403:
+        print(f"\n  [WARN] Failed to dispatch ingest event to {manager_repo}: HTTP 403 Forbidden", file=sys.stderr)
+        if body:
+            print(f"  GitHub API Response: {body.strip()}", file=sys.stderr)
+        print("\n  💡 How to resolve GitHub HTTP 403 Forbidden for LOCALIZATION_DISPATCH_TOKEN:", file=sys.stderr)
+        print(f"  1. If using a Fine-Grained Personal Access Token (starts with 'github_pat_'):", file=sys.stderr)
+        print(f"     - Under 'Repository access', select 'Only select repositories' and add '{manager_repo}'.", file=sys.stderr)
+        print(f"     - Under 'Permissions' -> 'Repository permissions', set 'Contents' to 'Read and write'.", file=sys.stderr)
+        print(f"  2. If using a Classic Personal Access Token (starts with 'ghp_'):", file=sys.stderr)
+        print(f"     - Ensure the 'repo' scope checkbox is selected (full control of repositories).", file=sys.stderr)
+        print(f"  3. Note: The automatic GitHub Actions '${{{{ secrets.GITHUB_TOKEN }}}}' cannot be used across repositories.", file=sys.stderr)
+    else:
+        print(f"\n  [WARN] Failed to dispatch ingest event to {manager_repo} (HTTP {status}): {body}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(description="Dispatch newly merged localization keys to manager repo")
