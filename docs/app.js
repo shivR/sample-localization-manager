@@ -614,20 +614,170 @@ function handleAddNewKey(event) {
 
 // Deploy to Firebase
 function openDeployModal() {
+  const currentVer = (window.liveManifest && window.liveManifest.locales && window.liveManifest.locales[currentLocale])
+    ? window.liveManifest.locales[currentLocale].version
+    : "1.0.0";
+  
+  const currentVerEl = document.getElementById("deployCurrentVersionTag");
+  if (currentVerEl) {
+    currentVerEl.textContent = `v${currentVer}`;
+  }
+
+  // Pre-calculate next semantic versions
+  const parts = currentVer.split('.').map(n => parseInt(n) || 0);
+  const patchVer = `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
+  const minorVer = `${parts[0]}.${parts[1] + 1}.0`;
+  const majorVer = `${parts[0] + 1}.0.0`;
+
+  const verSelect = document.getElementById("deployVersionSelect");
+  if (verSelect) {
+    verSelect.innerHTML = `
+      <option value="${patchVer}">v${patchVer} (Patch - Text Revision)</option>
+      <option value="${minorVer}" selected>v${minorVer} (Minor - New Strings Added)</option>
+      <option value="${majorVer}">v${majorVer} (Major - Catalog Restructure)</option>
+    `;
+  }
+
+  // Reset progress box
+  const progressBox = document.getElementById("deployProgressBox");
+  if (progressBox) {
+    progressBox.classList.add("hidden");
+  }
+  const executeBtn = document.getElementById("executeDeployBtn");
+  if (executeBtn) {
+    executeBtn.disabled = false;
+    executeBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Deploy Now';
+  }
+  const cancelBtn = document.getElementById("cancelDeployBtn");
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = "Cancel";
+  }
+
   document.getElementById("deployModal").classList.remove("hidden");
 }
+
 function closeDeployModal() {
   document.getElementById("deployModal").classList.add("hidden");
 }
 
-function executeDeploy() {
+async function executeDeploy() {
   const env = document.getElementById("deployEnvSelect").value;
   const version = document.getElementById("deployVersionSelect").value;
   
-  closeDeployModal();
-  document.getElementById("activeVersionTag").textContent = `v${version}`;
+  const progressBox = document.getElementById("deployProgressBox");
+  const statusTitle = document.getElementById("deployStatusTitle");
+  const statusDetails = document.getElementById("deployStatusDetails");
+  const spinner = document.getElementById("deploySpinner");
+  const executeBtn = document.getElementById("executeDeployBtn");
+  const cancelBtn = document.getElementById("cancelDeployBtn");
 
-  alert(`🚀 Deploy Initiated!\nTarget Locale: ${currentLocale}\nEnvironment: ${env}\nRelease Version: v${version}\n\nBundles published to Cloud Storage CDN and Realtime Database manifest updated atomically!`);
+  if (progressBox) {
+    progressBox.classList.remove("hidden");
+    progressBox.className = "mb-4 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50 text-xs space-y-2";
+  }
+  if (statusTitle) statusTitle.textContent = `Publishing ${currentLocale.toUpperCase()} v${version} to Firebase...`;
+  if (statusDetails) statusDetails.textContent = "Compiling bundle & calculating SHA-256 checksum...";
+  if (spinner) spinner.className = "fa-solid fa-circle-notch fa-spin text-indigo-600";
+  if (executeBtn) executeBtn.disabled = true;
+  if (cancelBtn) cancelBtn.disabled = true;
+
+  const payload = {
+    locale: currentLocale,
+    version: version,
+    environment: env,
+    actor: "cloudflare_dashboard",
+    translations: translations[currentLocale] || {},
+    catalog: catalog
+  };
+
+  try {
+    const resp = await fetch("/api/deploy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+    if (!resp.ok || !data.success) {
+      throw new Error(data.error || `Deployment failed with HTTP ${resp.status}`);
+    }
+
+    // Success state
+    if (progressBox) progressBox.className = "mb-4 p-3 rounded-lg border border-emerald-300 bg-emerald-50 text-xs space-y-2";
+    if (statusTitle) statusTitle.innerHTML = `<span class="text-emerald-700 font-bold">✅ Successfully Deployed v${data.version}!</span>`;
+    if (spinner) spinner.className = "fa-solid fa-check text-emerald-600 text-base";
+    if (statusDetails) {
+      statusDetails.innerHTML = `
+        <div class="space-y-1.5 text-[11px] text-emerald-900 mt-1">
+          <p><strong>Cloud Storage:</strong> <code class="bg-white/90 px-1 py-0.5 rounded border border-emerald-200 font-mono">${data.storage_path}</code></p>
+          <p><strong>Gate 1 Checksum:</strong> <code class="bg-white/90 px-1 py-0.5 rounded border border-emerald-200 font-mono">${data.checksum.substring(0, 16)}...</code></p>
+          <p><strong>Realtime Database:</strong> Updated manifest pointer at <code class="bg-white/90 px-1 py-0.5 rounded border border-emerald-200 font-mono">/localization/locales/${data.locale}</code></p>
+          <p class="text-emerald-700 text-[10px] pt-1">🎉 Mobile clients will pick up this release immediately without app restart!</p>
+        </div>
+      `;
+    }
+
+    document.getElementById("activeVersionTag").textContent = `v${data.version}`;
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.textContent = "Done";
+    }
+
+    // Refresh live manifest in background
+    setTimeout(refreshLiveManifest, 1000);
+
+  } catch (err) {
+    if (progressBox) progressBox.className = "mb-4 p-3 rounded-lg border border-rose-300 bg-rose-50 text-xs space-y-2";
+    if (statusTitle) statusTitle.innerHTML = `<span class="text-rose-700 font-bold">❌ Deployment Error</span>`;
+    if (spinner) spinner.className = "fa-solid fa-triangle-exclamation text-rose-600 text-base";
+    if (statusDetails) {
+      statusDetails.innerHTML = `
+        <p class="text-rose-800 font-medium">${err.message}</p>
+        <p class="text-slate-500 text-[10px] mt-1.5">Note: When running on Cloudflare Pages, ensure <code>FIREBASE_SERVICE_ACCOUNT_KEY</code> is configured in Cloudflare Pages Settings -> Environment Variables.</p>
+      `;
+    }
+    if (executeBtn) executeBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
+}
+
+// Live Firebase Manifest Synchronizer
+async function refreshLiveManifest() {
+  const dot = document.getElementById("firebaseStatusDot");
+  const text = document.getElementById("firebaseStatusText");
+  const envSelect = document.getElementById("deployEnvSelect");
+  const targetEnv = envSelect ? envSelect.value : "production";
+
+  if (dot) dot.className = "fa-solid fa-circle text-[8px] text-amber-400 animate-pulse";
+  if (text) text.textContent = "Syncing...";
+
+  try {
+    const resp = await fetch(`/api/manifest?env=${targetEnv}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    if (data.success && data.manifest) {
+      window.liveManifest = data.manifest;
+      if (dot) dot.className = "fa-solid fa-circle text-[8px] text-emerald-400 animate-pulse";
+      if (text) text.textContent = "RTDB Live";
+
+      // If active locale is in manifest, update version tag
+      if (data.manifest.locales && data.manifest.locales[currentLocale]) {
+        const liveEntry = data.manifest.locales[currentLocale];
+        const verTag = document.getElementById("activeVersionTag");
+        if (verTag) verTag.textContent = `v${liveEntry.version}`;
+        const curVerTag = document.getElementById("deployCurrentVersionTag");
+        if (curVerTag) curVerTag.textContent = `v${liveEntry.version}`;
+      }
+    } else {
+      if (dot) dot.className = "fa-solid fa-circle text-[8px] text-amber-400";
+      if (text) text.textContent = "RTDB Empty";
+    }
+  } catch (e) {
+    if (dot) dot.className = "fa-solid fa-circle text-[8px] text-slate-400";
+    if (text) text.textContent = "Local Mock";
+  }
 }
 
 // Initialize on Load
@@ -635,4 +785,5 @@ document.addEventListener("DOMContentLoaded", () => {
   syncLocaleDropdown();
   updateStats();
   renderTable();
+  refreshLiveManifest();
 });

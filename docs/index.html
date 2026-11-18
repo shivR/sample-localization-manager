@@ -27,8 +27,12 @@
           <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
             EthOS Localization Manager
             <span class="text-xs bg-indigo-500/30 text-indigo-300 font-medium px-2 py-0.5 rounded-full border border-indigo-400/30">Dynamic CDN</span>
+            <span id="firebaseStatusPill" onclick="refreshLiveManifest()" class="text-xs bg-slate-800 text-slate-300 font-medium px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1 cursor-pointer hover:bg-slate-700 transition" title="Click to refresh status from Firebase">
+              <i id="firebaseStatusDot" class="fa-solid fa-circle text-[8px] text-amber-400"></i>
+              <span id="firebaseStatusText">Checking RTDB...</span>
+            </span>
           </h1>
-          <p class="text-xs text-slate-400">Master Catalog & Multi-Language Release Governor</p>
+          <p class="text-xs text-slate-400">Master Catalog & Multi-Language Release Governor • Cloudflare Pages</p>
         </div>
       </div>
 
@@ -293,8 +297,8 @@
           <span id="deployLocaleTag" class="font-bold text-slate-800">Spanish (es)</span>
         </div>
         <div class="flex justify-between py-1.5 border-b border-slate-100">
-          <span class="text-slate-500">Current Version:</span>
-          <span class="font-mono text-slate-600">v1.0.0</span>
+          <span class="text-slate-500">Current Live Version:</span>
+          <span id="deployCurrentVersionTag" class="font-mono text-slate-600">v1.0.0</span>
         </div>
         <div class="flex justify-between py-1.5 border-b border-slate-100">
           <span class="text-slate-500">New Release Version:</span>
@@ -305,11 +309,11 @@
           </select>
         </div>
         <div class="flex justify-between py-1.5 border-b border-slate-100">
-          <span class="text-slate-500">Environment:</span>
+          <span class="text-slate-500">Target Environment:</span>
           <select id="deployEnvSelect" class="font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-300">
-            <option value="development" selected>development</option>
+            <option value="production" selected>production</option>
             <option value="staging">staging</option>
-            <option value="production">production</option>
+            <option value="development">development</option>
           </select>
         </div>
         <div class="flex justify-between py-1.5 border-b border-slate-100">
@@ -317,16 +321,26 @@
           <span id="deployCoverageTag" class="font-bold text-emerald-600">18 / 19 (94.7%)</span>
         </div>
       </div>
+
+      <!-- Deploy Progress & Result Status -->
+      <div id="deployProgressBox" class="hidden mb-4 p-3 rounded-lg border text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <span id="deployStatusTitle" class="font-bold">Deploying to Firebase...</span>
+          <i id="deploySpinner" class="fa-solid fa-circle-notch fa-spin text-indigo-600"></i>
+        </div>
+        <p id="deployStatusDetails" class="text-slate-600 text-[11px]">Contacting Cloudflare Pages serverless publisher...</p>
+      </div>
+
       <div class="bg-indigo-50/70 p-3 rounded-lg border border-indigo-100 text-[11px] text-indigo-900 space-y-1 mb-4">
-        <p class="font-bold"><i class="fa-solid fa-shield-halved text-indigo-600"></i> Deployment Verification Pipeline:</p>
+        <p class="font-bold"><i class="fa-solid fa-shield-halved text-indigo-600"></i> Edge Deployment Verification Pipeline:</p>
         <p>1. Schema & ICU placeholder verification</p>
         <p>2. Byte-level SHA-256 hash calculation (Gate 1 match guarantee)</p>
-        <p>3. Immutable upload to Cloud Storage CDN</p>
+        <p>3. Immutable upload to Firebase Cloud Storage CDN</p>
         <p>4. Atomic manifest pointer switch in Realtime Database</p>
       </div>
       <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
-        <button onclick="closeDeployModal()" class="px-3.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200">Cancel</button>
-        <button onclick="executeDeploy()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5">
+        <button id="cancelDeployBtn" onclick="closeDeployModal()" class="px-3.5 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200">Cancel</button>
+        <button id="executeDeployBtn" onclick="executeDeploy()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5">
           <i class="fa-solid fa-paper-plane"></i> Deploy Now
         </button>
       </div>

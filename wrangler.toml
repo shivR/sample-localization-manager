@@ -1,0 +1,7 @@
+name = "ethos-localization-manager"
+pages_build_output_dir = "docs"
+compatibility_date = "2024-01-01"
+
+[vars]
+FIREBASE_DATABASE_URL = "https://sample-localization-management-default-rtdb.firebaseio.com"
+FIREBASE_STORAGE_BUCKET = "sample-localization-management.firebasestorage.app"
