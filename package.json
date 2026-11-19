@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "echo 'Build output directory is docs/'",
-    "deploy": "wrangler pages deploy docs"
+    "deploy": "wrangler pages project create ethos-localization-manager --production-branch=main || true && wrangler pages deploy docs --project-name=ethos-localization-manager"
   },
   "devDependencies": {
     "wrangler": "^3.100.0"
