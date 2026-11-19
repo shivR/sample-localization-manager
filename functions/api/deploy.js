@@ -144,11 +144,12 @@ export async function onRequestPost(context) {
     // 5. Authenticate via Google OAuth2
     const token = await getGoogleOAuth2AccessToken(env);
 
-    // 6. Upload immutable bundle to Firebase Cloud Storage CDN
+    // 6. Upload immutable bundle to Cloud Storage CDN
     const storageRelPath = `localization/locales/${locale}/${version}/bundle.json`;
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodeURIComponent(storageRelPath)}`;
+    const gcsUploadUrl = `https://storage.googleapis.com/upload/storage/v1/b/${storageBucket}/o?uploadType=media&name=${encodeURIComponent(storageRelPath)}`;
+    const firebaseStorageUploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodeURIComponent(storageRelPath)}`;
 
-    const uploadResp = await fetch(uploadUrl, {
+    let uploadResp = await fetch(gcsUploadUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -158,15 +159,35 @@ export async function onRequestPost(context) {
     });
 
     if (!uploadResp.ok) {
-      const errText = await uploadResp.text();
-      throw new Error(`Firebase Cloud Storage upload failed (HTTP ${uploadResp.status}): ${errText}`);
+      const gcsErr = await uploadResp.text();
+      console.warn(`GCS JSON API upload failed (${uploadResp.status}): ${gcsErr}. Retrying with Firebase Storage REST API...`);
+      uploadResp = await fetch(firebaseStorageUploadUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: finalBundleBytes
+      });
+      if (!uploadResp.ok) {
+        const fbErr = await uploadResp.text();
+        throw new Error(`Cloud Storage upload failed (GCS: ${gcsErr} | Firebase: ${fbErr})`);
+      }
     }
 
     // 7. Read-back verification
-    const readBackUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(storageRelPath)}?alt=media`;
-    const readBackResp = await fetch(readBackUrl, {
+    const gcsReadBackUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucket}/o/${encodeURIComponent(storageRelPath)}?alt=media`;
+    const fbReadBackUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(storageRelPath)}?alt=media`;
+
+    let readBackResp = await fetch(gcsReadBackUrl, {
       headers: { "Authorization": `Bearer ${token}` }
     });
+
+    if (!readBackResp.ok) {
+      readBackResp = await fetch(fbReadBackUrl, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+    }
 
     if (!readBackResp.ok) {
       throw new Error(`Read-back verification from Cloud Storage failed (HTTP ${readBackResp.status})`);

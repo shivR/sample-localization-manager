@@ -99,7 +99,8 @@ export async function getGoogleOAuth2AccessToken(env) {
 
   const scopes = [
     "https://www.googleapis.com/auth/firebase.database",
-    "https://www.googleapis.com/auth/devstorage.full_control"
+    "https://www.googleapis.com/auth/devstorage.full_control",
+    "https://www.googleapis.com/auth/cloud-platform"
   ].join(" ");
 
   const claims = {
