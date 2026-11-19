@@ -136,6 +136,16 @@
           <i class="fa-solid fa-file-arrow-up text-blue-600"></i> Import Translated CSV
           <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
         </label>
+
+        <!-- Sync Live RTDB Button -->
+        <button onclick="refreshLiveManifest(true)" title="Force refresh live manifest from Firebase Realtime Database" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-300">
+          <i class="fa-solid fa-arrows-rotate text-indigo-600"></i> Sync RTDB
+        </button>
+
+        <!-- Reset Defaults Button -->
+        <button onclick="resetToInitialState()" title="Reset local edits to default master catalog" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-300">
+          <i class="fa-solid fa-rotate-left text-slate-500"></i> Reset
+        </button>
       </div>
 
       <div class="flex items-center gap-3">
@@ -157,7 +167,10 @@
 
       <div class="w-full sm:w-72 relative">
         <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-        <input type="text" id="searchInput" oninput="filterTable()" placeholder="Search key, source, or translation..." class="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <input type="text" id="searchInput" oninput="filterTable()" placeholder="Search key, source, or translation..." class="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs">
+          <i class="fa-solid fa-circle-xmark"></i>
+        </button>
       </div>
     </div>
 
@@ -383,6 +396,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Floating Toast Notifications Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
   <script src="app.js"></script>
 </body>
