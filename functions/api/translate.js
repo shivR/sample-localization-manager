@@ -1,7 +1,7 @@
 /**
  * Cloudflare Pages Function: POST /api/translate
  * Secure Edge Proxy for Google Gemini translation engine
- * Supports Gemini 2.5 Flash with fallback chain (2.0 Flash, 1.5 Flash)
+ * Supports Gemini 3.8 Flash with robust fallback chain (3.5 Flash, flash-latest, 2.5 Flash Lite)
  * and dual authentication (Cloudflare Secret GEMINI_API_KEY or Client Request Key)
  */
 
@@ -58,8 +58,14 @@ export async function onRequestPost(context) {
     });
   }
 
-  // Use Gemini API with candidate model fallback chain
-  const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  // Use Gemini API with active model fallback chain
+  const candidateModels = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite"
+  ];
+
   let lastError = null;
   let successfulModel = null;
   let transMap = null;
@@ -98,7 +104,7 @@ ${JSON.stringify(texts, null, 2)}`;
       if (!resp.ok) {
         const errBody = await resp.text();
         lastError = new Error(`${model} returned HTTP ${resp.status}: ${errBody}`);
-        // If 404 (model not found/available on this project), try next candidate
+        // If 404 (model not found/deprecated), try next candidate model
         if (resp.status === 404) {
           continue;
         }
@@ -125,7 +131,7 @@ ${JSON.stringify(texts, null, 2)}`;
       lastError = e;
       console.warn(`Translation attempt with ${model} failed:`, e.message);
       if (lastError.message.includes("403") || lastError.message.includes("API key not valid")) {
-        break; // Invalid API key won't work on other models
+        break; // Stop if the API key itself is unauthorized
       }
     }
   }
