@@ -16,7 +16,7 @@ export async function onRequestGet(context) {
   const status = {
     status: "ok",
     runtime: "cloudflare_pages",
-    version: "v1.0.2-gcs",
+    version: "v1.0.3-rtdb-auth",
     timestamp: new Date().toISOString(),
     config: {
       has_service_account: Boolean(serviceAccount && serviceAccount.client_email),

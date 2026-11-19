@@ -228,10 +228,15 @@ export async function onRequestPost(context) {
     };
 
     // Update manifest for environment
+    const rtdbHeaders = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+
     const rtdbEnvManifestUrl = `${databaseUrl}/localization/releases/${environment}/manifest/locales/${locale}.json?access_token=${token}`;
     const rtdbEnvResp = await fetch(rtdbEnvManifestUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: rtdbHeaders,
       body: JSON.stringify(manifestEntry)
     });
 
@@ -244,7 +249,7 @@ export async function onRequestPost(context) {
     const rtdbClientUrl = `${databaseUrl}/localization/locales/${locale}.json?access_token=${token}`;
     await fetch(rtdbClientUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: rtdbHeaders,
       body: JSON.stringify(manifestEntry)
     });
 
@@ -252,7 +257,7 @@ export async function onRequestPost(context) {
     const rtdbTimeUrl = `${databaseUrl}/localization/releases/${environment}/manifest/updated_at.json?access_token=${token}`;
     await fetch(rtdbTimeUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: rtdbHeaders,
       body: JSON.stringify(nowIso)
     });
 
@@ -260,7 +265,7 @@ export async function onRequestPost(context) {
     const historyUrl = `${databaseUrl}/localization/releases/${environment}/history/${releaseId}.json?access_token=${token}`;
     await fetch(historyUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: rtdbHeaders,
       body: JSON.stringify({
         release_id: releaseId,
         locale: locale,
