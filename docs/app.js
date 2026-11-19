@@ -319,29 +319,98 @@ function approveAllVisible() {
 }
 
 // AI Translation with Gemini
-function triggerGeminiTranslation() {
+async function triggerGeminiTranslation() {
   const currentTrans = translations[currentLocale] || {};
-  let translatedCount = 0;
+  const stringsToTranslate = {};
+  const langName = getLanguageName(currentLocale);
 
+  // Collect untranslated or unapproved strings
   for (const [key, item] of Object.entries(catalog)) {
     const trans = currentTrans[key];
     if (!trans || trans.status !== "APPROVED" || !trans.text) {
-      // Mock / Gemini translation logic
-      const targetLang = getLanguageName(currentLocale);
-      const generated = mockGeminiTranslate(item.source, currentLocale);
-      currentTrans[key] = {
-        text: generated,
-        status: "AI_GENERATED",
-        type: "GEMINI_2.5_FLASH"
-      };
-      translatedCount++;
+      stringsToTranslate[key] = item.source;
     }
   }
 
-  translations[currentLocale] = currentTrans;
-  saveState();
-  renderTable();
-  alert(`Generated AI translations for ${translatedCount} strings in ${getLanguageName(currentLocale)}!`);
+  const keysCount = Object.keys(stringsToTranslate).length;
+  if (keysCount === 0) {
+    const retranslate = confirm(
+      `All ${Object.keys(catalog).length} strings in ${langName} (${currentLocale}) are already approved.\n\nDo you want to re-translate all strings with Gemini AI?`
+    );
+    if (!retranslate) return;
+    for (const [key, item] of Object.entries(catalog)) {
+      stringsToTranslate[key] = item.source;
+    }
+  }
+
+  const totalToTranslate = Object.keys(stringsToTranslate).length;
+
+  let localKey = localStorage.getItem("ethos_gemini_api_key") || "";
+  if (!localKey && !window.serverHasGeminiKey) {
+    const wantsKey = confirm(
+      `🤖 Gemini AI Translation Engine\n\nNo Gemini API Key is currently set.\nWould you like to enter your Gemini API Key for real-time AI translation?\n\n(Click Cancel to proceed with offline fallback translations)`
+    );
+    if (wantsKey) {
+      openGeminiKeyModal();
+      return;
+    }
+  }
+
+  // Update button state to loading spinner
+  const aiBtn = document.getElementById("aiTranslateBtn");
+  const originalHtml = aiBtn ? aiBtn.innerHTML : "";
+  if (aiBtn) {
+    aiBtn.disabled = true;
+    aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Translating ${totalToTranslate} strings...`;
+    aiBtn.classList.add("opacity-75");
+  }
+
+  try {
+    const resp = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texts: stringsToTranslate,
+        target_locale: currentLocale,
+        language_name: langName,
+        api_key: localKey || undefined
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok && (!data.translations || Object.keys(data.translations).length === 0)) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+
+    const translationsMap = data.translations || {};
+    let appliedCount = 0;
+
+    for (const [key, res] of Object.entries(translationsMap)) {
+      currentTrans[key] = {
+        text: res.text,
+        status: "AI_GENERATED",
+        type: res.type || (data.engine ? data.engine.toUpperCase() : "AI_DRAFT")
+      };
+      appliedCount++;
+    }
+
+    translations[currentLocale] = currentTrans;
+    saveState();
+    renderTable();
+    updateStats();
+
+    const engineDisplay = data.engine ? data.engine.replace(/_/g, " ").toUpperCase() : "GEMINI AI";
+    alert(`🎉 Successfully translated ${appliedCount} strings into ${langName} using ${engineDisplay}!`);
+  } catch (err) {
+    console.error("Gemini translation error:", err);
+    alert(`⚠️ Translation error: ${err.message}\nCheck your Gemini API Key or network connection.`);
+  } finally {
+    if (aiBtn) {
+      aiBtn.disabled = false;
+      aiBtn.innerHTML = originalHtml;
+      aiBtn.classList.remove("opacity-75");
+    }
+  }
 }
 
 function mockGeminiTranslate(source, loc) {
@@ -778,6 +847,71 @@ async function refreshLiveManifest() {
     if (dot) dot.className = "fa-solid fa-circle text-[8px] text-slate-400";
     if (text) text.textContent = "Local Mock";
   }
+
+  try {
+    const healthResp = await fetch("/api/health");
+    if (healthResp.ok) {
+      const healthData = await healthResp.json();
+      window.serverHasGeminiKey = Boolean(healthData.config?.has_gemini_key);
+    }
+  } catch (e) {
+    // ignore
+  }
+  updateGeminiPill();
+}
+
+// Gemini API Key Management
+function updateGeminiPill() {
+  const dot = document.getElementById("geminiStatusDot");
+  const text = document.getElementById("geminiStatusText");
+  const localKey = localStorage.getItem("ethos_gemini_api_key");
+
+  if (window.serverHasGeminiKey) {
+    if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-emerald-400";
+    if (text) text.textContent = "Gemini Cloud";
+  } else if (localKey) {
+    if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-emerald-400";
+    if (text) text.textContent = "Gemini Active";
+  } else {
+    if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-amber-400";
+    if (text) text.textContent = "Gemini Key";
+  }
+}
+
+function openGeminiKeyModal() {
+  const modal = document.getElementById("geminiKeyModal");
+  const input = document.getElementById("geminiApiKeyInput");
+  if (input) {
+    input.value = localStorage.getItem("ethos_gemini_api_key") || "";
+  }
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeGeminiKeyModal() {
+  const modal = document.getElementById("geminiKeyModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function saveGeminiKey() {
+  const input = document.getElementById("geminiApiKeyInput");
+  const key = input ? input.value.trim() : "";
+  if (key) {
+    localStorage.setItem("ethos_gemini_api_key", key);
+    alert("Gemini API Key saved in browser!");
+  } else {
+    localStorage.removeItem("ethos_gemini_api_key");
+  }
+  closeGeminiKeyModal();
+  updateGeminiPill();
+}
+
+function clearGeminiKey() {
+  localStorage.removeItem("ethos_gemini_api_key");
+  const input = document.getElementById("geminiApiKeyInput");
+  if (input) input.value = "";
+  alert("Gemini API Key removed from browser.");
+  closeGeminiKeyModal();
+  updateGeminiPill();
 }
 
 // Initialize on Load
@@ -786,4 +920,5 @@ document.addEventListener("DOMContentLoaded", () => {
   updateStats();
   renderTable();
   refreshLiveManifest();
+  updateGeminiPill();
 });
