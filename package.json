@@ -1,0 +1,13 @@
+{
+  "name": "sample-localization-manager",
+  "version": "1.0.0",
+  "description": "EthOS Dynamic Localization Management Dashboard on Cloudflare Pages",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Build output directory is docs/'",
+    "deploy": "wrangler pages deploy docs"
+  },
+  "devDependencies": {
+    "wrangler": "^3.100.0"
+  }
+}
