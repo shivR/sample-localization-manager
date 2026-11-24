@@ -35,10 +35,14 @@ class TestCSVExchange(unittest.TestCase):
     def tearDown(self):
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        es_dir = os.path.join(WORKSPACE_DIR, "translation-store", "locales", "es")
         if self.backup_bundle:
-            es_bundle = os.path.join(WORKSPACE_DIR, "translation-store", "locales", "es", "bundle.json")
+            es_bundle = os.path.join(es_dir, "bundle.json")
             with open(es_bundle, "w", encoding="utf-8") as f:
                 f.write(self.backup_bundle)
+        else:
+            if os.path.exists(es_dir):
+                shutil.rmtree(es_dir, ignore_errors=True)
 
     def test_01_export_csv_format(self):
         csv_out = os.path.join(self.temp_dir, "export_es.csv")
@@ -95,11 +99,11 @@ class TestCSVExchange(unittest.TestCase):
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["key", "source_english", "translation_es", "status"])
-            # Corrupted placeholder: {completed} -> {hecho}
+            # Corrupted placeholder: %1$s is missing from translation
             writer.writerow([
-                "ethos.sample.counter.completed_tasks",
-                "{completed} of {total} activities completed",
-                "{hecho} de {total} completadas",
+                "chat.task_guard.heat_map_desktop_notice",
+                "Please go to %1$s on your computer",
+                "Por favor vaya a su computadora sin enlace",
                 "IMPORTED_DRAFT"
             ])
 

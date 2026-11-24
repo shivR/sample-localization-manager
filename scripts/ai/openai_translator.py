@@ -202,6 +202,15 @@ def translate_locale_catalog(
         catalog = json.load(f)
 
     catalog_keys = catalog.get("keys", {})
+    if isinstance(catalog_keys, list):
+        catalog_keys = {
+            (item.get("semantic_key") or item.get("key")): {
+                "source_text": item.get("default_text") or item.get("source_text", ""),
+                "description": item.get("description", "")
+            }
+            for item in catalog_keys if isinstance(item, dict) and (item.get("semantic_key") or item.get("key"))
+        }
+
     if not catalog_keys:
         raise ValueError("Master catalog has no keys defined.")
 

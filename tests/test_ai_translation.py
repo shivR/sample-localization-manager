@@ -68,5 +68,11 @@ class TestAITranslation(unittest.TestCase):
         self.assertEqual(gemini_translator.translate_locale_catalog, openai_translator.translate_locale_catalog)
         self.assertEqual(gemini_translator.LOCALE_NAMES, openai_translator.LOCALE_NAMES)
 
+    @classmethod
+    def tearDownClass(cls):
+        fr_dir = os.path.join(WORKSPACE_DIR, "translation-store", "locales", "fr")
+        if os.path.exists(fr_dir):
+            shutil.rmtree(fr_dir)
+
 if __name__ == "__main__":
     unittest.main()
