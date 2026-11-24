@@ -1,9 +1,10 @@
 /**
  * Cloudflare Pages Function: GET /api/manifest
  * Fetches the live localization release manifest from Firebase Realtime Database
+ * using Option B: Pure Firebase Auth (or public read).
  */
 
-import { getGoogleOAuth2AccessToken, getServiceAccountConfig } from "./utils/firebase-auth.js";
+import { getFirebaseIdToken } from "./utils/firebase-auth.js";
 
 export async function onRequestGet(context) {
   const env = context.env || {};
@@ -13,18 +14,19 @@ export async function onRequestGet(context) {
   const databaseUrl = (env.FIREBASE_DATABASE_URL || "https://sample-localization-management-default-rtdb.firebaseio.com").replace(/\/+$/, "");
 
   let token = null;
-  if (getServiceAccountConfig(env)) {
+  if (env.FIREBASE_API_KEY && env.FIREBASE_PUBLISHER_EMAIL && env.FIREBASE_PUBLISHER_PASSWORD) {
     try {
-      token = await getGoogleOAuth2AccessToken(env);
+      token = await getFirebaseIdToken(env);
     } catch (e) {
-      console.warn("Could not acquire OAuth2 token for read; falling back to unauthenticated read:", e.message);
+      // Manifest reading is public by default (.read: true); fallback gracefully
+      console.warn("Could not acquire Firebase ID token for read; falling back to unauthenticated read:", e.message);
     }
   }
 
   // Primary path: /localization/releases/{env}/manifest.json
-  // Fallback path: /localization.json
+  // Fallback path: /localization.json / /localization/locales.json
   const manifestUrl = token
-    ? `${databaseUrl}/localization/releases/${targetEnv}/manifest.json?access_token=${token}`
+    ? `${databaseUrl}/localization/releases/${targetEnv}/manifest.json?auth=${token}`
     : `${databaseUrl}/localization/releases/${targetEnv}/manifest.json`;
 
   try {
@@ -40,7 +42,7 @@ export async function onRequestGet(context) {
     // If environment manifest is null or empty, check root /localization/locales.json
     if (!manifest || Object.keys(manifest).length === 0) {
       const rootUrl = token
-        ? `${databaseUrl}/localization/locales.json?access_token=${token}`
+        ? `${databaseUrl}/localization/locales.json?auth=${token}`
         : `${databaseUrl}/localization/locales.json`;
       const rootResp = await fetch(rootUrl);
       if (rootResp.ok) {

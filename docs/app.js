@@ -501,10 +501,10 @@ async function triggerGeminiTranslation() {
 
   const totalToTranslate = Object.keys(stringsToTranslate).length;
 
-  let localKey = localStorage.getItem("ethos_gemini_api_key") || "";
-  if (!localKey && !window.serverHasGeminiKey) {
+  let localKey = localStorage.getItem("ethos_openai_api_key") || localStorage.getItem("ethos_gemini_api_key") || "";
+  if (!localKey && !window.serverHasOpenAIKey && !window.serverHasGeminiKey) {
     const wantsKey = confirm(
-      `🤖 Gemini AI Translation Engine\n\nNo Gemini API Key is currently set.\nWould you like to enter your Gemini API Key for real-time AI translation?\n\n(Click Cancel to proceed with offline fallback translations)`
+      `🤖 OpenAI Translation Engine\n\nNo OpenAI API Key is currently set.\nWould you like to enter your OpenAI API Key for real-time AI translation?\n\n(Click Cancel to proceed with offline fallback translations)`
     );
     if (wantsKey) {
       openGeminiKeyModal();
@@ -555,7 +555,7 @@ async function triggerGeminiTranslation() {
     renderTable();
     updateStats();
 
-    const engineDisplay = data.engine ? data.engine.replace(/_/g, " ").toUpperCase() : "GEMINI AI";
+    const engineDisplay = data.engine ? data.engine.replace(/_/g, " ").toUpperCase() : "OPENAI";
     showToast(`🎉 Translated ${appliedCount} strings using ${engineDisplay}!`, "success");
   } catch (err) {
     console.error("Gemini translation error:", err);
@@ -977,7 +977,7 @@ async function executeDeploy() {
     if (statusDetails) {
       statusDetails.innerHTML = `
         <p class="text-rose-800 font-medium">${escapeHtml(err.message)}</p>
-        <p class="text-slate-500 text-[10px] mt-1.5">Note: Ensure <code>FIREBASE_SERVICE_ACCOUNT_KEY</code> is configured in Cloudflare Pages Settings -> Environment Variables.</p>
+        <p class="text-slate-500 text-[10px] mt-1.5">Note: Ensure <code>FIREBASE_API_KEY</code>, <code>FIREBASE_PUBLISHER_EMAIL</code>, and <code>FIREBASE_PUBLISHER_PASSWORD</code> are configured in Cloudflare Pages Settings -&gt; Environment Variables.</p>
       `;
     }
     if (executeBtn) executeBtn.disabled = false;
@@ -1037,6 +1037,7 @@ async function refreshLiveManifest(userInitiated = false) {
     const healthResp = await fetch("/api/health");
     if (healthResp.ok) {
       const healthData = await healthResp.json();
+      window.serverHasOpenAIKey = Boolean(healthData.config?.has_openai_key);
       window.serverHasGeminiKey = Boolean(healthData.config?.has_gemini_key);
     }
   } catch (e) {
@@ -1046,21 +1047,21 @@ async function refreshLiveManifest(userInitiated = false) {
   updateGeminiPill();
 }
 
-// Gemini API Key Management
+// OpenAI API Key Management
 function updateGeminiPill() {
   const dot = document.getElementById("geminiStatusDot");
   const text = document.getElementById("geminiStatusText");
-  const localKey = localStorage.getItem("ethos_gemini_api_key");
+  const localKey = localStorage.getItem("ethos_openai_api_key") || localStorage.getItem("ethos_gemini_api_key");
 
-  if (window.serverHasGeminiKey) {
+  if (window.serverHasOpenAIKey || window.serverHasGeminiKey) {
     if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-emerald-400";
-    if (text) text.textContent = "Gemini Cloud";
+    if (text) text.textContent = "OpenAI Cloud";
   } else if (localKey) {
     if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-emerald-400";
-    if (text) text.textContent = "Gemini Active";
+    if (text) text.textContent = "OpenAI Active";
   } else {
     if (dot) dot.className = "fa-solid fa-sparkles text-[9px] text-amber-400";
-    if (text) text.textContent = "Gemini Key";
+    if (text) text.textContent = "OpenAI Key";
   }
 }
 
@@ -1068,7 +1069,7 @@ function openGeminiKeyModal() {
   const modal = document.getElementById("geminiKeyModal");
   const input = document.getElementById("geminiApiKeyInput");
   if (input) {
-    input.value = localStorage.getItem("ethos_gemini_api_key") || "";
+    input.value = localStorage.getItem("ethos_openai_api_key") || localStorage.getItem("ethos_gemini_api_key") || "";
   }
   if (modal) modal.classList.remove("hidden");
   if (input) input.focus();
@@ -1083,21 +1084,23 @@ function saveGeminiKey() {
   const input = document.getElementById("geminiApiKeyInput");
   const key = input ? input.value.trim() : "";
   if (key) {
-    localStorage.setItem("ethos_gemini_api_key", key);
-    showToast("Gemini API Key saved in browser!", "success");
+    localStorage.setItem("ethos_openai_api_key", key);
+    showToast("OpenAI API Key saved in browser!", "success");
   } else {
+    localStorage.removeItem("ethos_openai_api_key");
     localStorage.removeItem("ethos_gemini_api_key");
-    showToast("Gemini API Key removed", "info");
+    showToast("OpenAI API Key removed", "info");
   }
   closeGeminiKeyModal();
   updateGeminiPill();
 }
 
 function clearGeminiKey() {
+  localStorage.removeItem("ethos_openai_api_key");
   localStorage.removeItem("ethos_gemini_api_key");
   const input = document.getElementById("geminiApiKeyInput");
   if (input) input.value = "";
-  showToast("Gemini API Key removed from browser", "info");
+  showToast("OpenAI API Key removed from browser", "info");
   closeGeminiKeyModal();
   updateGeminiPill();
 }

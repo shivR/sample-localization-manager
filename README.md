@@ -9,9 +9,9 @@ This repository serves as the central authoring, review, governance, and publish
 - **Catalog (`catalog/master-catalog.json`)**: Master catalog of semantic keys (e.g. `ethos.sample.title`, `ethos.sample.btn.submit`).
 - **Translation Store (`translation-store/locales/`)**: Stores source English text and target language translations (`en`, `es`, `th`, `fr`, etc.).
 - **Schemas (`schemas/`)**: JSON schemas enforcing Draft-07 validation for published bundles, database manifests, and release metadata.
-- **Web Dashboard (`docs/index.html`)**: Interactive review UI with 1-click Gemini auto-translation, CSV Google Sheets exchange, and Firebase deployment.
+- **Web Dashboard (`docs/index.html`)**: Interactive review UI with 1-click OpenAI auto-translation, CSV Google Sheets exchange, and Firebase deployment.
 - **Publishing & Governance Engine (`scripts/`)**:
-  - `ai/gemini_translator.py`: Generates mobile-optimized translations via Google Gemini 2.5 Flash while preserving ICU tokens and brand proper nouns.
+  - `ai/openai_translator.py`: Generates mobile-optimized translations via OpenAI (GPT-4o-mini) while preserving ICU tokens and brand proper nouns (with `ai/gemini_translator.py` compatibility wrapper).
   - `exchange/csv_exchange.py`: Exports and imports CSV for external linguists (Google Sheets round-trip) with breaking-change detection.
   - `linter/check_key_drift.py`: Cross-project PR governance sentinel that blocks unregistered keys with an emergency override escape hatch.
   - `compiler.py`: Compiles translation store records into client-optimized bundles with placeholder validation.
@@ -21,31 +21,31 @@ This repository serves as the central authoring, review, governance, and publish
 
 ---
 
-## 2. AI Translation Setup with Google Gemini
+## 2. AI Translation Setup with OpenAI
 
-The translation engine integrates **Google Gemini 2.5 Flash** for rapid, culturally authentic, and mobile-concise translations while strictly safeguarding ICU placeholders (e.g., `{completed}`, `{total}`) and the protected proper noun `EthOS`.
+The translation engine integrates **OpenAI GPT-4o-mini** for rapid, culturally authentic, and mobile-concise translations while strictly safeguarding ICU placeholders (e.g., `{completed}`, `{total}`) and the protected proper noun `EthOS`.
 
-### Step 1: Obtain a Gemini API Key
-1. Visit [Google AI Studio](https://aistudio.google.com/).
-2. Sign in with your Google account and click **"Get API key"**.
-3. Create a free API key and copy it.
+### Step 1: Obtain an OpenAI API Key
+1. Visit [OpenAI API Keys](https://platform.openai.com/api-keys).
+2. Sign in with your OpenAI account and click **"Create new secret key"**.
+3. Create an API key and copy it (starts with `sk-...`).
 
 ### Step 2: Configure Environment Variable
 In your terminal, export the key (or add it to your shell profile / `.env` file):
 ```bash
-export GEMINI_API_KEY="your-gemini-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
 ```
 
 ### Step 3: Run AI Translation
 To translate a new language or auto-translate missing strings:
 ```bash
 # Translate French (fr)
-python3 scripts/ai/gemini_translator.py --locale fr --name French
+python3 scripts/ai/openai_translator.py --locale fr --name French
 
 # Auto-translate missing strings in Spanish (es)
-python3 scripts/ai/gemini_translator.py --locale es --name Spanish
+python3 scripts/ai/openai_translator.py --locale es --name Spanish
 ```
-> *Note:* If `GEMINI_API_KEY` is omitted, the engine automatically falls back to an offline deterministic mock translator for development and test suites.
+> *Note:* If `OPENAI_API_KEY` is omitted, the engine automatically falls back to an offline deterministic mock translator for development and test suites.
 
 ---
 
@@ -97,7 +97,7 @@ python3 -m http.server 8080 --directory docs/
 ### Dashboard Capabilities:
 - **Locale Switcher**: Switch between active languages or add a new locale.
 - **Add New String**: Modal to introduce a new semantic key and English text with instant multi-language translation.
-- **Auto-Translate with Gemini**: 1-click batch translation of all pending keys.
+- **Auto-Translate with OpenAI**: 1-click batch translation of all pending keys.
 - **Export / Import CSV**: Direct file download and drag-and-drop upload with breaking-change warning dialogs.
 - **Review Table**: In-line text editing, single-key `[Approve]` / `[Reject]`, and `[Approve All Visible]`.
 - **1-Click Deploy to Firebase**: Bumps the semantic version (`1.0.0` -> `1.1.0`), runs dual-gate verification, and deploys to Firebase Storage and Realtime Database.

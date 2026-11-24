@@ -165,24 +165,24 @@ firebase deploy --only database --project <FIREBASE_PROJECT_ID>
 firebase deploy --only storage --project <FIREBASE_PROJECT_ID>
 ```
 
-### 2.6 AI Translation Setup with Google Gemini
-The manager integrates **Google Gemini 2.5 Flash** for rapid, culturally authentic, and mobile-concise translations while strictly safeguarding ICU placeholders (e.g. `{completed}`, `{total}`) and the protected proper noun `EthOS`.
+### 2.6 AI Translation Setup with OpenAI
+The manager integrates **OpenAI GPT-4o-mini** for rapid, culturally authentic, and mobile-concise translations while strictly safeguarding ICU placeholders (e.g. `{completed}`, `{total}`) and the protected proper noun `EthOS`.
 
 #### Step 1: Obtain API Key
-1. Visit [Google AI Studio](https://aistudio.google.com/).
-2. Click **"Get API key"** and create a free key.
+1. Visit [OpenAI API Keys](https://platform.openai.com/api-keys).
+2. Click **"Create new secret key"** and create an API key.
 3. Export the key in your terminal or `.env`:
    ```bash
-   export GEMINI_API_KEY="your-gemini-api-key-here"
+   export OPENAI_API_KEY="your-openai-api-key-here"
    ```
 
 #### Step 2: Auto-Translate a New or Existing Locale
 ```bash
 # Translate a brand-new language (e.g. French):
-python3 scripts/ai/gemini_translator.py --locale fr --name French
+python3 scripts/ai/openai_translator.py --locale fr --name French
 
 # Auto-translate missing strings in an existing language (e.g. Spanish):
-python3 scripts/ai/gemini_translator.py --locale es --name Spanish
+python3 scripts/ai/openai_translator.py --locale es --name Spanish
 ```
 > [!NOTE]
 > All AI-generated strings receive the status `AI_GENERATED`. In accordance with our governance invariants, `compiler.py` will not package `AI_GENERATED` strings into production bundles until they have been reviewed and approved.
@@ -228,7 +228,7 @@ python3 -m http.server 8080 --directory docs/
 #### Operational Features:
 - **Locale Switcher**: Switch between active languages or add a new locale with 1 click.
 - **Add New String**: Modal to introduce a new semantic key and English source text with automatic translation across all active languages.
-- **Auto-Translate with Gemini**: Batch-translate all unapproved strings.
+- **Auto-Translate with OpenAI**: Batch-translate all unapproved strings.
 - **Export & Import CSV**: Direct Google Sheets file download and drag-and-drop upload with missing-keys warning dialogs.
 - **Interactive Review Table**: In-line text editing, single-key `[Approve]` / `[Reject]`, and `[Approve All Visible]`.
 - **1-Click Firebase Deployer**: Bumps the semantic version (`1.0.0` -> `1.1.0`), runs dual-gate validation, uploads immutable bundles to Cloud Storage CDN, and atomically updates the Realtime Database manifest.

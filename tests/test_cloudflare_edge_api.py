@@ -57,9 +57,19 @@ class TestCloudflareEdgeAPI(unittest.TestCase):
         self.assertIn("FIREBASE_SERVICE_ACCOUNT_KEY", guide)
         self.assertIn("FIREBASE_DATABASE_URL", guide)
         self.assertIn("FIREBASE_STORAGE_BUCKET", guide)
+        self.assertIn("FIREBASE_API_KEY", guide)
+        self.assertIn("FIREBASE_PUBLISHER_EMAIL", guide)
+        self.assertIn("FIREBASE_PUBLISHER_PASSWORD", guide)
+        self.assertIn("OPENAI_API_KEY", guide)
         self.assertIn("cors.json", guide)
         self.assertIn("roles/firebasedatabase.admin", guide)
         self.assertIn("roles/storage.objectAdmin", guide)
+
+    def test_04_firebase_id_token_unit_tests(self):
+        test_script = os.path.join(WORKSPACE_DIR, "tests", "test_firebase_id_token_auth.mjs")
+        self.assertTrue(os.path.exists(test_script))
+        res = subprocess.run(["node", "--test", test_script], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Node unit tests failed:\n{res.stdout}\n{res.stderr}")
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,8 +2,10 @@
   "name": "sample-localization-manager",
   "version": "1.0.0",
   "description": "EthOS Dynamic Localization Management Dashboard on Cloudflare Pages",
+  "type": "module",
   "private": true,
   "scripts": {
+    "test": "node --test tests/*.mjs",
     "build": "echo 'Build output directory is docs/'",
     "deploy": "wrangler pages project create ethos-localization-manager --production-branch=main || true && wrangler pages deploy docs --project-name=ethos-localization-manager"
   },

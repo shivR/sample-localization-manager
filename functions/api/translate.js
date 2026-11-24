@@ -1,8 +1,8 @@
 /**
  * Cloudflare Pages Function: POST /api/translate
- * Secure Edge Proxy for Google Gemini translation engine
- * Supports Gemini 3.8 Flash with robust fallback chain (3.5 Flash, flash-latest, 2.5 Flash Lite)
- * and dual authentication (Cloudflare Secret GEMINI_API_KEY or Client Request Key)
+ * Secure Edge Proxy for OpenAI Translation Engine
+ * Supports GPT-4o-mini with robust fallback chain (gpt-4o, gpt-3.5-turbo)
+ * and dual authentication (Cloudflare Secret OPENAI_API_KEY or Client Request Key).
  */
 
 export async function onRequestPost(context) {
@@ -25,7 +25,7 @@ export async function onRequestPost(context) {
     api_key: clientApiKey
   } = body;
 
-  const apiKey = clientApiKey || env.GEMINI_API_KEY;
+  const apiKey = clientApiKey || env.OPENAI_API_KEY || env.GEMINI_API_KEY;
 
   const entries = Object.entries(texts);
   if (entries.length === 0) {
@@ -51,29 +51,29 @@ export async function onRequestPost(context) {
       locale: target_locale,
       language: language_name,
       engine: "OFFLINE_FALLBACK",
-      note: "No Gemini API key provided. Configure GEMINI_API_KEY in Cloudflare Pages Settings or enter key in dashboard.",
+      note: "No OpenAI API key provided. Configure OPENAI_API_KEY in Cloudflare Pages Settings or enter key in dashboard.",
       translations: results
     }), {
       headers: { "Content-Type": "application/json" }
     });
   }
 
-  // Use Gemini API with active model fallback chain
+  // Use OpenAI API with active model fallback chain
   const candidateModels = [
-    "gemini-3.8-flash",
-    "gemini-3.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite"
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-3.5-turbo"
   ];
 
   let lastError = null;
   let successfulModel = null;
   let transMap = null;
 
-  const prompt = `You are an expert mobile localization engine. Translate the following English UI strings into ${language_name} (${target_locale}).
+  const systemPrompt = `You are an expert mobile localization engine for the EthOS research platform.
+Translate the following English UI strings into ${language_name} (${target_locale}).
 
 Strict Rules:
-1. Preserve all ICU placeholders exactly as they appear (e.g. {count}, {completed}, {total}, {timestamp}, {version}).
+1. Preserve all ICU format string placeholders exactly as they appear (e.g. {count}, {completed}, {total}, {timestamp}, {version}, %1$s, %@).
 2. Do NOT translate proper nouns and brand names: 'EthOS'.
 3. Keep translations concise, natural, and accurate for mobile UI buttons, banners, and labels.
 4. Return ONLY a valid JSON object matching this schema:
@@ -81,44 +81,48 @@ Strict Rules:
   "translations": {
     "<key>": "<translated_text>"
   }
-}
-
-Strings to translate:
-${JSON.stringify(texts, null, 2)}`;
+}`;
 
   for (const model of candidateModels) {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const resp = await fetch(geminiUrl, {
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json"
-          }
+          model: model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Strings to translate:\n${JSON.stringify(texts, null, 2)}` }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1
         })
       });
 
       if (!resp.ok) {
         const errBody = await resp.text();
         lastError = new Error(`${model} returned HTTP ${resp.status}: ${errBody}`);
-        // If 404 (model not found/deprecated), try next candidate model
-        if (resp.status === 404) {
+        // If 404 (model not found) or 429 (rate limit), try next candidate model
+        if (resp.status === 404 || resp.status === 429) {
           continue;
         }
-        // For fatal errors (400, 403 API key invalid), stop and fail
+        // For fatal errors (401 Unauthorized - invalid key), fail fast
+        if (resp.status === 401) {
+          throw lastError;
+        }
         throw lastError;
       }
 
       const data = await resp.json();
-      const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!candidateText) {
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) {
         throw new Error(`Empty content returned by ${model}`);
       }
 
-      let cleaned = candidateText.trim();
+      let cleaned = content.trim();
       if (cleaned.startsWith("```")) {
         cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
       }
@@ -130,8 +134,8 @@ ${JSON.stringify(texts, null, 2)}`;
     } catch (e) {
       lastError = e;
       console.warn(`Translation attempt with ${model} failed:`, e.message);
-      if (lastError.message.includes("403") || lastError.message.includes("API key not valid")) {
-        break; // Stop if the API key itself is unauthorized
+      if (lastError.message.includes("401") || lastError.message.includes("Incorrect API key")) {
+        break; // Stop immediately if key is invalid
       }
     }
   }
@@ -157,7 +161,7 @@ ${JSON.stringify(texts, null, 2)}`;
   }
 
   // Fallback to offline generator if all failed
-  console.warn("All Gemini models failed, falling back to offline generator:", lastError?.message);
+  console.warn("All OpenAI models failed, falling back to offline generator:", lastError?.message);
   for (const [k, text] of entries) {
     results[k] = {
       text: `[${target_locale.toUpperCase()}] ${text}`,

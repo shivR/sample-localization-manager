@@ -19,13 +19,16 @@ WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 CATALOG_PATH = os.path.join(WORKSPACE_DIR, "catalog", "master-catalog.json")
 LOCALES_DIR = os.path.join(WORKSPACE_DIR, "translation-store", "locales")
 
-# Import gemini translator
+# Import AI translator
 sys.path.insert(0, os.path.join(WORKSPACE_DIR, "scripts", "ai"))
 try:
-    from gemini_translator import translate_locale_catalog, LOCALE_NAMES
+    from openai_translator import translate_locale_catalog, LOCALE_NAMES
 except ImportError:
-    translate_locale_catalog = None
-    LOCALE_NAMES = {}
+    try:
+        from gemini_translator import translate_locale_catalog, LOCALE_NAMES
+    except ImportError:
+        translate_locale_catalog = None
+        LOCALE_NAMES = {}
 
 def extract_placeholders(text: str) -> list:
     if not text:

@@ -9,7 +9,7 @@ service firebase.storage {
     
     function isPublisher() {
       return isAuthenticated() && 
-        (request.auth.token.role == 'publisher' || request.auth.token.admin == true || request.auth.token.role == 'ci_publisher');
+        (request.auth.uid == '8S7uHiRiViXeuvjz8RgBiJc5TCy2' || request.auth.token.email == 'localization-publisher@ethosapp.com');
     }
     
     function isValidLocale(loc) {

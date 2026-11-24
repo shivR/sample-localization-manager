@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Unit tests for AI Translation Engine (gemini_translator.py)
+Unit tests for AI Translation Engine (openai_translator.py & gemini_translator.py wrapper)
 Validates:
 1. Placeholder token extraction and preservation
 2. Offline fallback translation formatting
 3. Translation bundle structure and metadata
+4. Backwards-compatibility wrapper
 """
 
 import os
@@ -18,7 +19,9 @@ WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCRIPTS_DIR = os.path.join(WORKSPACE_DIR, "scripts")
 sys.path.insert(0, os.path.join(SCRIPTS_DIR, "ai"))
 
-from gemini_translator import extract_placeholders, mock_translate, translate_locale_catalog
+import openai_translator
+import gemini_translator
+from openai_translator import extract_placeholders, mock_translate, translate_locale_catalog
 
 class TestAITranslation(unittest.TestCase):
 
@@ -57,6 +60,13 @@ class TestAITranslation(unittest.TestCase):
             self.assertEqual(item["translation_status"], "AI_GENERATED")
             self.assertIn("translated_text", item)
             self.assertTrue(len(item["translated_text"]) > 0)
+
+    def test_04_gemini_wrapper_compatibility(self):
+        # Verify gemini_translator aliases functions to openai_translator
+        self.assertEqual(gemini_translator.extract_placeholders, openai_translator.extract_placeholders)
+        self.assertEqual(gemini_translator.mock_translate, openai_translator.mock_translate)
+        self.assertEqual(gemini_translator.translate_locale_catalog, openai_translator.translate_locale_catalog)
+        self.assertEqual(gemini_translator.LOCALE_NAMES, openai_translator.LOCALE_NAMES)
 
 if __name__ == "__main__":
     unittest.main()

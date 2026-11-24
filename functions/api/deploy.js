@@ -1,15 +1,16 @@
 /**
  * Cloudflare Pages Function: POST /api/deploy
- * Executes the atomic localization bundle publishing workflow:
+ * Executes the atomic localization bundle publishing workflow using Option B:
+ * Pure Firebase Authentication (Zero Service Account).
  * 1. Validates bundle parameters and approved translations
  * 2. Compiles bundle and calculates SHA-256 checksums
- * 3. Uploads immutable bundle to Firebase Cloud Storage CDN
- * 4. Executes read-back verification
- * 5. Atomically updates Firebase Realtime Database release manifest
- * 6. Records audit history
+ * 3. Authenticates via Firebase Auth REST API (Identity Toolkit) for an ID token
+ * 4. Uploads immutable bundle to Firebase Cloud Storage via REST API with ID token
+ * 5. Executes read-back verification against Gate 1 SHA-256 checksum
+ * 6. Atomically updates Firebase Realtime Database release manifest via REST with ID token
  */
 
-import { getGoogleOAuth2AccessToken } from "./utils/firebase-auth.js";
+import { getFirebaseIdToken } from "./utils/firebase-auth.js";
 
 async function sha256Hex(bufferOrString) {
   let data;
@@ -21,6 +22,46 @@ async function sha256Hex(bufferOrString) {
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Updates the Realtime Database manifest for a single locale via REST API using a Firebase ID token.
+ * Adheres to Section 8 of EthOS_Localization_Restricted_Firebase_Access.pdf.
+ *
+ * @param {Object} env - Cloudflare environment variables
+ * @param {string} locale - Target locale code (e.g. "es", "fr", "th")
+ * @param {Object} manifest - Locale manifest entry payload
+ * @returns {Promise<Object>} Response JSON from RTDB
+ */
+export async function updateManifest(env, locale, manifest) {
+  if (!locale || !/^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$/.test(locale)) {
+    throw new Error(`Invalid locale format: '${locale}'`);
+  }
+
+  const token = await getFirebaseIdToken(env);
+  const base = (env.FIREBASE_DATABASE_URL || "https://sample-localization-management-default-rtdb.firebaseio.com").replace(/\/+$/, "");
+  const url = new URL(`${base}/localization/locales/${locale}.json`);
+  url.searchParams.set("auth", token);
+
+  const response = await fetch(url.toString(), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(manifest)
+  });
+
+  if (!response.ok) {
+    let errDetail = "";
+    try {
+      const errJson = await response.json();
+      errDetail = errJson.error || JSON.stringify(errJson);
+    } catch {
+      errDetail = await response.text();
+    }
+    // Mask URL in error to prevent ID token leakage
+    throw new Error(`Manifest write failed for locale '${locale}' (HTTP ${response.status}): ${errDetail}`);
+  }
+
+  return response.json();
 }
 
 export async function onRequestPost(context) {
@@ -85,7 +126,6 @@ export async function onRequestPost(context) {
         stringsMap[k] = text;
         approvedCount++;
       } else if (text !== "") {
-        // Include non-approved if explicitly requested
         stringsMap[k] = text;
       }
     }
@@ -133,7 +173,7 @@ export async function onRequestPost(context) {
       plurals: {}
     };
 
-    // Calculate actual checksum over the serialized JSON
+    // Calculate actual checksum over serialized JSON
     const serializedBundle = JSON.stringify(bundleSkeleton, null, 2);
     const finalChecksum = await sha256Hex(serializedBundle);
     bundleSkeleton.bundle_checksum = finalChecksum;
@@ -141,53 +181,39 @@ export async function onRequestPost(context) {
     const finalBundleBytes = new TextEncoder().encode(JSON.stringify(bundleSkeleton, null, 2));
     const storageFileChecksum = await sha256Hex(finalBundleBytes);
 
-    // 5. Authenticate via Google OAuth2
-    const token = await getGoogleOAuth2AccessToken(env);
+    // 5. Authenticate via Firebase Auth REST API for ID token (Pure Firebase Auth - Zero Service Account)
+    const idToken = await getFirebaseIdToken(env);
 
-    // 6. Upload immutable bundle to Cloud Storage CDN
+    // 6. Upload immutable bundle to Firebase Cloud Storage CDN via REST API
     const storageRelPath = `localization/locales/${locale}/${version}/bundle.json`;
-    const gcsUploadUrl = `https://storage.googleapis.com/upload/storage/v1/b/${storageBucket}/o?uploadType=media&name=${encodeURIComponent(storageRelPath)}`;
     const firebaseStorageUploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodeURIComponent(storageRelPath)}`;
 
-    let uploadResp = await fetch(gcsUploadUrl, {
+    const uploadResp = await fetch(firebaseStorageUploadUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        "Authorization": `Firebase ${idToken}`,
         "Content-Type": "application/json"
       },
       body: finalBundleBytes
     });
 
     if (!uploadResp.ok) {
-      const gcsErr = await uploadResp.text();
-      console.warn(`GCS JSON API upload failed (${uploadResp.status}): ${gcsErr}. Retrying with Firebase Storage REST API...`);
-      uploadResp = await fetch(firebaseStorageUploadUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: finalBundleBytes
-      });
-      if (!uploadResp.ok) {
-        const fbErr = await uploadResp.text();
-        throw new Error(`Cloud Storage upload failed (GCS: ${gcsErr} | Firebase: ${fbErr})`);
+      let uploadErr = "";
+      try {
+        const errJson = await uploadResp.json();
+        uploadErr = errJson.error?.message || JSON.stringify(errJson);
+      } catch {
+        uploadErr = await uploadResp.text();
       }
+      throw new Error(`Firebase Cloud Storage upload failed (HTTP ${uploadResp.status}): ${uploadErr}`);
     }
 
-    // 7. Read-back verification
-    const gcsReadBackUrl = `https://storage.googleapis.com/storage/v1/b/${storageBucket}/o/${encodeURIComponent(storageRelPath)}?alt=media`;
+    // 7. Read-back verification from Cloud Storage
     const fbReadBackUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodeURIComponent(storageRelPath)}?alt=media`;
 
-    let readBackResp = await fetch(gcsReadBackUrl, {
-      headers: { "Authorization": `Bearer ${token}` }
+    const readBackResp = await fetch(fbReadBackUrl, {
+      headers: { "Authorization": `Firebase ${idToken}` }
     });
-
-    if (!readBackResp.ok) {
-      readBackResp = await fetch(fbReadBackUrl, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-    }
 
     if (!readBackResp.ok) {
       throw new Error(`Read-back verification from Cloud Storage failed (HTTP ${readBackResp.status})`);
@@ -202,7 +228,7 @@ export async function onRequestPost(context) {
       );
     }
 
-    // 8. Atomically update Firebase Realtime Database
+    // 8. Atomically update Firebase Realtime Database manifest using Firebase ID token
     const releaseId = `rel-${environment}-${locale}-${version}-${Date.now()}`;
     const manifestEntry = {
       locale: locale,
@@ -227,45 +253,33 @@ export async function onRequestPost(context) {
       }
     };
 
-    // Update manifest for environment
-    const rtdbHeaders = {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json"
-    };
-
-    const rtdbEnvManifestUrl = `${databaseUrl}/localization/releases/${environment}/manifest/locales/${locale}.json?access_token=${token}`;
-    const rtdbEnvResp = await fetch(rtdbEnvManifestUrl, {
-      method: "PUT",
-      headers: rtdbHeaders,
-      body: JSON.stringify(manifestEntry)
-    });
-
-    if (!rtdbEnvResp.ok) {
-      const errText = await rtdbEnvResp.text();
-      throw new Error(`Failed to update RTDB environment manifest (HTTP ${rtdbEnvResp.status}): ${errText}`);
-    }
-
     // Update root mobile client listener node: /localization/locales/{locale}.json
-    const rtdbClientUrl = `${databaseUrl}/localization/locales/${locale}.json?access_token=${token}`;
-    await fetch(rtdbClientUrl, {
-      method: "PUT",
-      headers: rtdbHeaders,
-      body: JSON.stringify(manifestEntry)
-    });
+    await updateManifest(env, locale, manifestEntry);
 
-    // Update timestamp
-    const rtdbTimeUrl = `${databaseUrl}/localization/releases/${environment}/manifest/updated_at.json?access_token=${token}`;
-    await fetch(rtdbTimeUrl, {
+    // Update parent updated_at timestamp
+    const rtdbTimeUrl = new URL(`${databaseUrl}/localization/updated_at.json`);
+    rtdbTimeUrl.searchParams.set("auth", idToken);
+    await fetch(rtdbTimeUrl.toString(), {
       method: "PUT",
-      headers: rtdbHeaders,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(nowIso)
     });
 
-    // Log release history
-    const historyUrl = `${databaseUrl}/localization/releases/${environment}/history/${releaseId}.json?access_token=${token}`;
-    await fetch(historyUrl, {
+    // Optionally update environment release manifest pointer
+    const envManifestUrl = new URL(`${databaseUrl}/localization/releases/${environment}/manifest/locales/${locale}.json`);
+    envManifestUrl.searchParams.set("auth", idToken);
+    await fetch(envManifestUrl.toString(), {
       method: "PUT",
-      headers: rtdbHeaders,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(manifestEntry)
+    }).catch(e => console.warn("Optional environment release pointer write omitted:", e.message));
+
+    // Optionally record release history ledger
+    const historyUrl = new URL(`${databaseUrl}/localization/releases/${environment}/history/${releaseId}.json`);
+    historyUrl.searchParams.set("auth", idToken);
+    await fetch(historyUrl.toString(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         release_id: releaseId,
         locale: locale,
@@ -276,7 +290,7 @@ export async function onRequestPost(context) {
         publisher: actor,
         coverage_percent: coveragePercent
       })
-    });
+    }).catch(e => console.warn("Optional history ledger write omitted:", e.message));
 
     return new Response(JSON.stringify({
       success: true,
@@ -296,7 +310,7 @@ export async function onRequestPost(context) {
     });
 
   } catch (err) {
-    console.error("Deploy failed:", err);
+    console.error("Deploy failed:", err.message);
     return new Response(JSON.stringify({
       success: false,
       error: err.message

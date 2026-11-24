@@ -2,7 +2,7 @@
   "rules": {
     "localization": {
       ".read": true,
-      ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)",
+      ".write": "auth != null && (auth.uid === '8S7uHiRiViXeuvjz8RgBiJc5TCy2' || auth.token.email === 'localization-publisher@ethosapp.com')",
       ".validate": "newData.hasChildren(['schema_version', 'environment', 'default_locale', 'updated_at', 'source_catalog_sha256', 'locales'])",
       "schema_version": {
         ".validate": "newData.isString() && newData.val().matches(/^[0-9]+\\.[0-9]+\\.[0-9]+$/)"

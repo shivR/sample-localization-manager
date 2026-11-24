@@ -1,10 +1,10 @@
 # Cloudflare Pages & Firebase Localization Deployment Manual
 
-**Version:** 1.0.0  
+**Version:** 2.0.0 (Pure Firebase Authentication - Zero Service Account)  
 **Target Project:** `sample-localization-manager` & EthOS Production Infrastructure  
 **Audience:** DevOps / System Administrators / Lead Engineers  
 
-This manual provides the complete, copy-pasteable, step-by-step instructions to host the Localization Management Dashboard on **Cloudflare Pages** and securely connect it with **Firebase Realtime Database** and **Firebase Cloud Storage** for instant zero-restart dynamic localization deployments.
+This manual provides complete, step-by-step, copy-pasteable instructions to obtain all required credentials, configure Firebase Authentication, deploy Security Rules, and configure **Cloudflare Pages** for zero-restart dynamic localization deployments without using GCP Service Account private keys.
 
 ---
 
@@ -21,17 +21,17 @@ This manual provides the complete, copy-pasteable, step-by-step instructions to 
 │   │  Translation UI   │───────>│  GET  /api/health (Config Check) │   │
 │   │  • Catalog Editor  │───────>│  GET  /api/manifest (Live RTDB)  │   │
 │   │  • Deploy Button   │───────>│  POST /api/deploy (Atomic Pub)   │   │
-│   │  • Gemini AI Draft │───────>│  POST /api/translate (AI Proxy)  │   │
+│   │  • OpenAI Trans.   │───────>│  POST /api/translate (AI Proxy)  │   │
 │   └────────────────────┘        └─────────────────┬────────────────┘   │
 └───────────────────────────────────────────────────┼────────────────────┘
                                                     │
-                 Google OAuth2 Service Account Auth │ (Zero Secret Leakage)
+      Pure Firebase ID Token Auth (Zero Service Account)
                                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                     FIREBASE CLOUD INFRASTRUCTURE                      │
 │                                                                        │
-│   Firebase Cloud Storage CDN         Firebase Realtime Database        │
-│   (Immutable Bundles)                (Active Manifest Pointer)         │
+│   Firebase Cloud Storage REST API    Firebase Realtime Database        │
+│   (storage.rules enforced)           (database.rules.json enforced)    │
 │   ┌────────────────────────────┐     ┌─────────────────────────────┐   │
 │   │ localization/locales/      │     │ /localization/releases/     │   │
 │   │   ├── es/1.1.0/bundle.json │     │   └── production/manifest   │   │
@@ -52,87 +52,232 @@ This manual provides the complete, copy-pasteable, step-by-step instructions to 
 
 ---
 
-## Phase 1: Google Cloud / Firebase Service Account Provisioning
+## Phase 1: Step-by-Step Manual Setup in Firebase Console
 
-To enable Cloudflare Pages to securely publish bundles to Firebase Storage and update Realtime Database manifests without exposing credentials in client-side code:
+Follow these steps to obtain all configuration values and credentials from the Firebase Console.
 
-### Step 1.1: Create Service Account in Google Cloud Console
-1. Open [Google Cloud Console](https://console.cloud.google.com/).
-2. Select your Firebase project: `sample-localization-management` (or your production project ID).
-3. In the left navigation, go to **IAM & Admin** &rarr; **Service Accounts**.
-4. Click **+ Create Service Account**:
-   - **Service account name**: `ethos-localization-cf-publisher`
-   - **Service account ID**: `ethos-localization-cf-publisher`
-   - **Description**: `Cloudflare Pages serverless publisher for EthOS dynamic localization`
-5. Click **Create and Continue**.
+### Step 1.1: Enable Email/Password Sign-In Method
+*(Firebase Authentication must permit email/password authentication for the publisher identity)*
+1. Open the [Firebase Console](https://console.firebase.google.com/).
+2. Select your project:
+   - For Sample/Staging: **`sample-localization-management`** (or `ethos-chat`)
+   - For Production: **`ethosapp-11363`**
+3. In the left sidebar, expand **Build** &rarr; click **Authentication**.
+4. Click on the **Sign-in method** tab.
+5. In the providers list, click on **Email/Password**.
+6. Toggle **Enable** to ON (leave "Email link (passwordless sign-in)" disabled).
+7. Click **Save**.
 
-### Step 1.2: Grant Least-Privilege IAM Roles
-Assign the following roles to the service account:
-- **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`): Grants write access to update `/localization/releases/...` and `/localization/locales/...`.
-- **Storage Object Admin** (`roles/storage.objectAdmin`): Grants upload and read-back verification access to the Cloud Storage bucket (`sample-localization-management.firebasestorage.app`).
-Click **Continue**, then click **Done**.
+### Step 1.2: Create the Dedicated Publisher User
+*(This identity acts as the authorized publisher for both Cloud Storage and Realtime Database)*
+1. In the same **Authentication** section, click on the **Users** tab.
+2. Click the **Add user** button in the top right.
+3. In the dialog:
+   - **Email**: `localization-publisher@ethosapp.com` (or your chosen service email)
+   - **Password**: Generate a strong random password (32+ characters, e.g. using `openssl rand -base64 24` or a password manager).
+4. Click **Add user**.
+5. Locate the newly created user in the Users table.
+6. In the **User UID** column, copy the unique alphanumeric string (e.g. `8S7uHiRiViXeuvjz8RgBiJc5TCy2` for sample).
+   - Save this UID; you will paste it into `database.rules.json` and `storage.rules`.
 
-### Step 1.3: Generate and Download JSON Private Key
-1. In the Service Accounts list, click on the newly created `ethos-localization-cf-publisher` service account.
-2. Select the **Keys** tab at the top.
-3. Click **Add Key** &rarr; **Create new key**.
-4. Select **JSON** format and click **Create**.
-5. Save the downloaded `.json` key securely to your local machine (e.g. `service-account.json`).
-   > [!CAUTION]
-   > Never commit this `.json` key file to Git. It will only be added as an encrypted secret in the Cloudflare Pages dashboard.
+### Step 1.3: Retrieve the Firebase Web API Key (`FIREBASE_API_KEY`)
+*(Used by Cloudflare Edge Functions to communicate with the Firebase Identity Toolkit REST API)*
+1. In the Firebase Console, click the **Gear icon (Project settings)** next to "Project Overview" in the top-left corner.
+2. Under the **General** tab, scroll down to the **Your project** card.
+3. Locate **Web API Key**.
+4. Copy the key (it starts with `AIzaSy...`).
+   - *Note: The Web API key identifies your Firebase project in public REST calls and does not grant administrative privileges by itself.*
 
-### Step 1.4: Minify the JSON Key for Cloudflare Environment Variable
-Run the following terminal command locally on your machine to convert the JSON key into a clean single-line string:
+### Step 1.4: Retrieve the Realtime Database URL (`FIREBASE_DATABASE_URL`)
+1. In the left sidebar, expand **Build** &rarr; click **Realtime Database**.
+2. At the top of the **Data** tab, copy the root database URL.
+   - Example: `https://sample-localization-management-default-rtdb.firebaseio.com`
 
-```bash
-# On macOS / Linux:
-cat path/to/service-account.json | jq -c . | pbcopy
-# Or using python:
-python3 -c "import json, sys; print(json.dumps(json.load(open('path/to/service-account.json'))))"
+### Step 1.5: Retrieve the Cloud Storage Bucket Name (`FIREBASE_STORAGE_BUCKET`)
+1. In the left sidebar, expand **Build** &rarr; click **Storage**.
+2. At the top of the **Files** tab, locate the bucket name (above the file browser).
+   - Example: `sample-localization-management.firebasestorage.app` (or `sample-localization-management.appspot.com`)
+   - *Note: Do not include `gs://` prefix when copying the bucket name.*
+
+---
+
+## Phase 2: Deploy Firebase Security Rules
+
+Deploy declarative rules so only the authenticated publisher UID can write to `/localization` and storage paths.
+
+### Step 2.1: Deploy Realtime Database Rules (`database.rules.json`)
+1. In Firebase Console, go to **Build** &rarr; **Realtime Database** &rarr; **Rules** tab.
+2. Paste the rules from `database.rules.json`:
+   *(Replace `'PUBLISHER_UID'` with your actual User UID from Step 1.2)*
+```json
+{
+  "rules": {
+    "localization": {
+      ".read": true,
+      ".write": "auth != null && (auth.uid === '8S7uHiRiViXeuvjz8RgBiJc5TCy2' || auth.token.email === 'localization-publisher@ethosapp.com')",
+      ".validate": "newData.hasChildren(['schema_version', 'environment', 'default_locale', 'updated_at', 'source_catalog_sha256', 'locales'])",
+      "schema_version": {
+        ".validate": "newData.isString() && newData.val().matches(/^[0-9]+\\.[0-9]+\\.[0-9]+$/)"
+      },
+      "environment": {
+        ".validate": "newData.isString() && (newData.val() === 'development' || newData.val() === 'staging' || newData.val() === 'production')"
+      },
+      "default_locale": {
+        ".validate": "newData.isString() && newData.val() === 'en'"
+      },
+      "updated_at": {
+        ".validate": "newData.isString()"
+      },
+      "source_catalog_version": {
+        ".validate": "newData.isString()"
+      },
+      "source_catalog_sha256": {
+        ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+      },
+      "locales": {
+        "$locale": {
+          ".validate": "newData.hasChildren(['locale', 'version', 'path', 'checksum', 'status', 'coverage_percent', 'approved_keys_count', 'total_catalog_keys', 'published_at', 'publisher_id', 'rollback_metadata']) && $locale.matches(/^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$/)",
+          "locale": {
+            ".validate": "newData.isString() && newData.val() === $locale"
+          },
+          "version": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]+\\.[0-9]+\\.[0-9]+$/)"
+          },
+          "path": {
+            ".validate": "newData.isString() && newData.val().matches(/^localization\\/locales\\/[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?\\/[0-9]+\\.[0-9]+\\.[0-9]+\\/bundle\\.json$/)"
+          },
+          "checksum": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+          },
+          "payload_hash": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-fA-F]{64}$/)"
+          },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() === 'ACTIVE' || newData.val() === 'ROLLED_BACK' || newData.val() === 'DEPRECATED' || newData.val() === 'PENDING')"
+          },
+          "coverage_percent": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "approved_keys_count": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "total_catalog_keys": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "published_at": {
+            ".validate": "newData.isString()"
+          },
+          "publisher_id": {
+            ".validate": "newData.isString()"
+          },
+          "rollback_metadata": {
+            ".validate": "newData.hasChildren(['is_rollback'])"
+          }
+        }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
 ```
-*(The single-line string is now in your clipboard ready for Cloudflare).*
+3. Click **Publish**.
+
+### Step 2.2: Deploy Cloud Storage Rules (`storage.rules`)
+1. In Firebase Console, go to **Build** &rarr; **Storage** &rarr; **Rules** tab.
+2. Paste the rules from `storage.rules`:
+   *(Replace `'PUBLISHER_UID'` with your actual User UID from Step 1.2)*
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isPublisher() {
+      return isAuthenticated() && 
+        (request.auth.uid == '8S7uHiRiViXeuvjz8RgBiJc5TCy2' || request.auth.token.email == 'localization-publisher@ethosapp.com');
+    }
+    
+    function isValidLocale(loc) {
+      return loc.matches('^[a-z]{2}(-[A-Z]{2}|-[A-Za-z0-9]+)?$');
+    }
+    
+    function isValidVersion(ver) {
+      return ver.matches('^[0-9]+\\.[0-9]+\\.[0-9]+$');
+    }
+    
+    match /localization/locales/{locale}/{version}/{filename} {
+      allow read: if isValidLocale(locale) &&
+                     isValidVersion(version) &&
+                     filename == 'bundle.json';
+      
+      allow create: if isPublisher() &&
+                       resource == null &&
+                       isValidLocale(locale) &&
+                       isValidVersion(version) &&
+                       filename == 'bundle.json' &&
+                       request.resource.size < 5 * 1024 * 1024 &&
+                       request.resource.contentType.matches('application/json.*');
+      
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
+```
+3. Click **Publish**.
 
 ---
 
-## Phase 2: Cloudflare Pages Setup
+## Phase 3: Obtain OpenAI Translation Key (`OPENAI_API_KEY`)
 
-### Step 2.1: Connect Repository to Cloudflare Pages
+The dashboard includes a one-click AI translation assistant powered by OpenAI (`gpt-4o-mini`).
+1. Visit [OpenAI API Keys](https://platform.openai.com/api-keys).
+2. Log in with your OpenAI account.
+3. Click **Create new secret key**.
+4. Name the key (e.g. `ethos-localization-publisher`).
+5. Copy the generated key (starts with `sk-...` or `sk-proj-...`).
+*(Note: Legacy `GEMINI_API_KEY` is also supported as a fallback during migration).*
+
+---
+
+## Phase 4: Configure Cloudflare Pages Environment Variables
+
 1. Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/).
-2. In the left sidebar, click **Compute (Workers & Pages)** &rarr; **Overview**.
-3. Click **Create application** &rarr; select the **Pages** tab.
-4. Click **Connect to Git**:
-   - Select your GitHub account.
-   - Choose the repository: **`shivR/sample-localization-manager`** (or your organization fork).
-   - Click **Begin setup**.
+2. Navigate to **Compute (Workers & Pages)** &rarr; click your project: **`sample-localization-manager`** (or `ethos-localization`).
+3. Click on **Settings** &rarr; **Environment variables**.
+4. Click **Add variables** and configure the following variables for **both Production and Preview**:
 
-### Step 2.2: Configure Build Settings
-Fill in the deployment parameters:
-- **Project name**: `sample-localization-manager` (or `ethos-localization`)
-- **Production branch**: `main`
-- **Framework preset**: `None`
-- **Build command**: *(Leave blank - pure static frontend + edge functions)*
-- **Build output directory**: `docs`
-
-### Step 2.3: Configure Encrypted Environment Variables (Secrets)
-Under the **Environment variables** section (or in **Settings > Environment variables** after creation), add the following variables for both **Production** and **Preview**:
-
-| Variable Name | Type | Value / Description | Example Value |
+| Variable Name | Type | How to Get / Value | Example Value |
 |---|---|---|---|
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | **Secret** (Encrypted) | Single-line JSON string from Step 1.4 | `{"type":"service_account","project_id":"sample-localization-management",...}` |
-| `FIREBASE_DATABASE_URL` | Plaintext | Firebase Realtime Database URL | `https://sample-localization-management-default-rtdb.firebaseio.com` |
-| `FIREBASE_STORAGE_BUCKET` | Plaintext | Firebase Cloud Storage bucket name | `sample-localization-management.firebasestorage.app` |
-| `GEMINI_API_KEY` | **Secret** (Encrypted) | Google AI Gemini API Key (from Google AI Studio) | `AIzaSy...` |
+| `FIREBASE_API_KEY` | Plaintext / Secret | From Step 1.3 (Firebase Console Project Settings) | `AIzaSy...` |
+| `FIREBASE_PUBLISHER_EMAIL` | Plaintext | From Step 1.2 (User email created in Firebase Auth) | `localization-publisher@ethosapp.com` |
+| `FIREBASE_PUBLISHER_PASSWORD` | **Secret** (Encrypted) | From Step 1.2 (User password created in Firebase Auth) | `YourSecureRandomPassword32!` |
+| `FIREBASE_DATABASE_URL` | Plaintext | From Step 1.4 (Firebase Realtime Database URL) | `https://sample-localization-management-default-rtdb.firebaseio.com` |
+| `FIREBASE_STORAGE_BUCKET` | Plaintext | From Step 1.5 (Firebase Cloud Storage bucket name) | `sample-localization-management.firebasestorage.app` |
+| `OPENAI_API_KEY` | **Secret** (Encrypted) | From Phase 3 (OpenAI Platform API key) | `sk-proj-...` |
 
-Click **Save and Deploy**. Cloudflare Pages will build the static assets from `docs/` and automatically mount `/functions/api/*` edge functions.
+5. Click **Save**.
+6. Navigate to **Deployments** &rarr; click **Retry deployment** (or trigger a new commit) to mount the new environment variables into the live edge runtime.
 
 ---
 
-## Phase 3: Firebase Cloud Storage CORS Configuration
+## Phase 5: Cloud Storage CORS Configuration
 
 Because web browsers and mobile apps download JSON bundles directly from Firebase Cloud Storage, Cloud Storage must allow cross-origin requests.
 
-### Step 3.1: Create `cors.json`
-Create a local file named `cors.json`:
+### Step 5.1: Create `cors.json`
+Verify `cors.json` exists in your workspace:
 ```json
 [
   {
@@ -151,65 +296,46 @@ Create a local file named `cors.json`:
 ]
 ```
 
-### Step 3.2: Apply CORS via Google Cloud CLI / Shell
-Run this command in your local terminal (or inside Google Cloud Shell):
-
+### Step 5.2: Apply CORS via Google Cloud SDK
+Run the following command in terminal:
 ```bash
-# Set CORS on the localization storage bucket:
 gcloud storage buckets update gs://sample-localization-management.firebasestorage.app --cors-file=cors.json
-
-# Or using legacy gsutil:
-gsutil cors set cors.json gs://sample-localization-management.firebasestorage.app
 ```
+*(Replace bucket name with your production bucket if deploying to production).*
 
-Verify that the CORS policy is active:
+---
+
+## Phase 6: Revoke Legacy GCP Service Account IAM Permissions
+
+Under Option B, Service Account credentials are no longer needed for publishing or manifest updates.
+
+If your project previously provisioned a service account (`ethos-localization-cf-publisher`):
+1. Open [Google Cloud Console IAM](https://console.cloud.google.com/iam-admin/iam).
+2. Locate the service account `ethos-localization-cf-publisher@...`.
+3. Revoke **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`).
+4. Revoke **Storage Object Admin** (`roles/storage.objectAdmin`).
+5. In **IAM & Admin** &rarr; **Service Accounts**, click on `ethos-localization-cf-publisher` &rarr; **Keys** tab &rarr; delete any active JSON keys that were previously stored in `FIREBASE_SERVICE_ACCOUNT_KEY`.
+
+---
+
+## Phase 7: Verification and Health Check
+
+### Step 7.1: Verify Health Endpoint
+Open the health check endpoint in your browser or with curl:
 ```bash
-gcloud storage buckets describe gs://sample-localization-management.firebasestorage.app --format="default(cors)"
+curl https://sample-localization-manager.pages.dev/api/health
 ```
-
----
-
-## Phase 4: Firebase Realtime Database Security Rules Verification
-
-Open the Firebase Console &rarr; **Realtime Database** &rarr; **Rules** tab. Ensure your rules allow public or authenticated reading of `/localization` and restrict direct writes to administrators / service accounts:
-
-```json
-{
-  "rules": {
-    "localization": {
-      ".read": true,
-      ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)",
-      "releases": {
-        ".read": true,
-        ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)"
-      },
-      "locales": {
-        ".read": true,
-        ".write": "auth != null && (auth.token.role === 'publisher' || auth.token.admin === true)"
-      }
-    }
-  }
-}
-```
-*(Note: Cloudflare Pages Functions authenticate using the Google Service Account via OAuth2, which automatically possesses administrative authorization).*
-
----
-
-## Phase 5: End-to-End Verification Runbook
-
-### Step 5.1: Verify Health Endpoint
-Open in your browser:
-```http
-https://<your-project>.pages.dev/api/health
-```
-Expected JSON response:
+Expected JSON Response:
 ```json
 {
   "status": "ok",
   "runtime": "cloudflare_pages",
+  "version": "v2.0.0-pure-firebase-auth",
   "config": {
-    "has_service_account": true,
-    "service_account_email": "ethos-localization-cf-publisher@sample-localization-management.iam.gserviceaccount.com",
+    "auth_mode": "pure_firebase_id_token",
+    "has_firebase_auth": true,
+    "publisher_email": "localization-publisher@ethosapp.com",
+    "has_service_account": false,
     "database_url": "https://sample-localization-management-default-rtdb.firebaseio.com",
     "storage_bucket": "sample-localization-management.firebasestorage.app",
     "has_gemini_key": true
@@ -217,62 +343,19 @@ Expected JSON response:
 }
 ```
 
-### Step 5.2: Verify Live Realtime Database Manifest Read
-Open in your browser:
-```http
-https://<your-project>.pages.dev/api/manifest?env=production
-```
-Expected response:
-```json
-{
-  "success": true,
-  "environment": "production",
-  "database_url": "https://sample-localization-management-default-rtdb.firebaseio.com",
-  "manifest": {
-    "locales": { ... }
-  }
-}
-```
-
-### Step 5.3: Test Deployment from the Web Dashboard
-1. Open your Cloudflare Pages dashboard URL: `https://<your-project>.pages.dev/`.
-2. Look at the header status badge:
-   - It should display: **`RTDB Live`** with a green pulsing dot.
-3. Select locale **Spanish (`es`)**.
-4. Click **Deploy to Firebase**:
-   - Choose **New Release Version**: e.g., `v1.1.0`.
-   - Target Environment: `production`.
-   - Click **Deploy Now**.
-5. Observe the live stepper:
-   - `Publishing ES v1.1.0 to Firebase...`
-   - `Compiling bundle & calculating SHA-256 checksum...`
-   - `✅ Successfully Deployed v1.1.0!`
-6. Verify in the Firebase Console:
-   - **Cloud Storage**: Open `sample-localization-management.firebasestorage.app` &rarr; Navigate to `localization/locales/es/1.1.0/bundle.json`. Verify the file exists.
-   - **Realtime Database**: Navigate to `/localization/locales/es`. Verify `version` is `"1.1.0"`, `checksum` matches the SHA-256 hash, and `status` is `"ACTIVE"`.
-7. **Mobile Client Verification**:
-   - Open the iOS or Android sample app while running.
-   - Observe visible strings update **instantly in real time without app restart or activity recreation**.
-
----
-
-## Phase 6: Local Development with Cloudflare Wrangler (Optional)
-
-To test Cloudflare Pages Functions locally before pushing to GitHub:
-
-```bash
-cd sample-localization-manager
-
-# Install Wrangler CLI:
-npm install -g wrangler
-
-# Run local Pages development server with mock or real environment variables:
-npx wrangler pages dev docs \
-  --binding FIREBASE_DATABASE_URL="https://sample-localization-management-default-rtdb.firebaseio.com" \
-  --binding FIREBASE_STORAGE_BUCKET="sample-localization-management.firebasestorage.app"
-```
-
-Open `http://localhost:8788` in your browser.
+### Step 7.2: Verify Deploy Flow from UI
+1. Open the dashboard in your browser (`https://sample-localization-manager.pages.dev`).
+2. Verify the top navigation indicators:
+   - **RTDB Live**: Green pulse indicator.
+   - **OpenAI Cloud**: Green sparkles indicator.
+3. Select a locale (e.g. `es`), make an edit or approve strings.
+4. Click **Publish to Firebase**.
+5. Observe the deployment progress:
+   - Bundle compilation & SHA-256 calculation.
+   - Immutable bundle upload to Cloud Storage via REST API using Firebase ID token.
+   - Read-back verification against SHA-256 checksum.
+   - Atomic Realtime Database manifest update via REST API using Firebase ID token.
+6. Open your iOS or Android sample application to verify zero-restart string updates!
 
 ---
 
@@ -280,8 +363,9 @@ Open `http://localhost:8788` in your browser.
 
 | Issue | Root Cause | Solution |
 |---|---|---|
-| **Health endpoint reports `has_service_account: false`** | `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable not added or not deployed in Cloudflare. | In Cloudflare Pages, go to **Settings > Environment variables**, add `FIREBASE_SERVICE_ACCOUNT_KEY`, and trigger a new deployment. |
-| **`Google OAuth2 token exchange failed: invalid_grant`** | Malformed private key or clock skew between edge and Google. | Ensure the full key including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` is present. Re-copy using `cat key.json \| jq -c .`. |
-| **`Firebase Cloud Storage upload failed: 403 Forbidden`** | Service account missing Storage permissions. | In Google Cloud IAM, grant the service account `Storage Object Admin` (`roles/storage.objectAdmin`). |
-| **`Failed to update RTDB: 401 Unauthorized`** | Service account missing Realtime Database permissions. | In Google Cloud IAM, grant `Firebase Realtime Database Admin` (`roles/firebasedatabase.admin`). |
+| **Health endpoint reports `has_firebase_auth: false`** | `FIREBASE_API_KEY`, `FIREBASE_PUBLISHER_EMAIL`, or `FIREBASE_PUBLISHER_PASSWORD` not configured. | Add all three variables in Cloudflare Pages Settings &rarr; Environment variables. |
+| **`Firebase publisher authentication failed: HTTP 400 (OPERATION_NOT_ALLOWED)`** | Email/Password provider is disabled in Firebase. | Follow Step 1.1: Firebase Console &rarr; Authentication &rarr; Sign-in method &rarr; Enable Email/Password. |
+| **`Firebase publisher authentication failed: HTTP 400 (INVALID_LOGIN_CREDENTIALS)`** | Password or email does not match user in Firebase Auth. | Follow Step 1.2: Check user in Authentication &rarr; Users tab, or reset password. |
+| **`Firebase Cloud Storage upload failed: HTTP 403`** | Storage Security Rules rejecting write. | Deploy `storage.rules` (Step 2.2) ensuring `request.auth.uid == 'PUBLISHER_UID'` or email matches. |
+| **`Manifest write failed: HTTP 401`** | Realtime Database Rules rejecting write. | Deploy `database.rules.json` (Step 2.1) ensuring `auth.uid === 'PUBLISHER_UID'` or email matches. |
 | **CORS error when downloading bundle on mobile web** | Cloud Storage bucket missing CORS headers. | Apply `cors.json` using `gcloud storage buckets update gs://<bucket> --cors-file=cors.json`. |

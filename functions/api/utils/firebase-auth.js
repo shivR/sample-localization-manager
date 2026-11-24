@@ -1,63 +1,95 @@
 /**
- * EthOS Firebase Admin OAuth2 Token Authenticator for Cloudflare Workers / Pages Functions
- * Performs zero-dependency RS256 JWT signing using Web Crypto API to exchange
- * a Google Service Account Private Key for a short-lived OAuth2 Access Token.
+ * EthOS Firebase Authentication Identity Helper for Cloudflare Workers / Pages Functions
+ * Implements Option B (Pure Firebase Auth): exchanges dedicated publisher user credentials
+ * for a short-lived Firebase Authentication ID token via Google Identity Toolkit REST API.
+ * Eliminates reliance on GCP Service Account keys and RS256 JWT signing.
  */
 
-let cachedToken = null;
-let tokenExpiresAt = 0;
+let cachedIdToken = null;
+let idTokenExpiresAt = 0;
 
 /**
- * Base64URL encoder helper
+ * Resets token cache (useful for testing or forced credential rotation)
  */
-function base64UrlEncode(strOrBuffer) {
-  let base64;
-  if (typeof strOrBuffer === "string") {
-    base64 = btoa(strOrBuffer);
-  } else {
-    let binary = "";
-    const bytes = new Uint8Array(strOrBuffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
+export function _resetTokenCache() {
+  cachedIdToken = null;
+  idTokenExpiresAt = 0;
+}
+
+/**
+ * Obtains a valid Firebase Authentication ID token using email/password credentials
+ * via the Firebase Auth REST API (Identity Toolkit).
+ * Caches token in memory for ~55 minutes (standard ID token validity is 60 minutes).
+ *
+ * @param {Object} env - Cloudflare environment variables
+ * @returns {Promise<string>} Firebase ID token
+ */
+export async function getFirebaseIdToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+
+  // Return cached token if valid for at least 5 more minutes
+  if (cachedIdToken && idTokenExpiresAt > now + 300) {
+    return cachedIdToken;
+  }
+
+  const apiKey = env?.FIREBASE_API_KEY;
+  const email = env?.FIREBASE_PUBLISHER_EMAIL;
+  const password = env?.FIREBASE_PUBLISHER_PASSWORD;
+
+  if (!apiKey || !email || !password) {
+    const missing = [];
+    if (!apiKey) missing.push("FIREBASE_API_KEY");
+    if (!email) missing.push("FIREBASE_PUBLISHER_EMAIL");
+    if (!password) missing.push("FIREBASE_PUBLISHER_PASSWORD");
+    throw new Error(
+      `Missing required Firebase Auth credentials: [${missing.join(", ")}]. ` +
+      "Configure them in Cloudflare Pages Settings -> Environment Variables."
+    );
+  }
+
+  const endpoint =
+    "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" +
+    encodeURIComponent(apiKey);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: email,
+      password: password,
+      returnSecureToken: true
+    })
+  });
+
+  if (!response.ok) {
+    let errorDetail = "";
+    try {
+      const errJson = await response.json();
+      errorDetail = errJson.error?.message || JSON.stringify(errJson);
+    } catch {
+      errorDetail = await response.text();
     }
-    base64 = btoa(binary);
+    throw new Error(`Firebase publisher authentication failed (HTTP ${response.status}): ${errorDetail}`);
   }
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+  const data = await response.json();
+  if (!data.idToken) {
+    throw new Error("Missing Firebase ID token in authentication response");
+  }
+
+  cachedIdToken = data.idToken;
+  // expiresIn is in seconds as a string, e.g. "3600"
+  const expiresInSec = parseInt(data.expiresIn, 10) || 3600;
+  idTokenExpiresAt = now + expiresInSec;
+
+  return cachedIdToken;
 }
 
 /**
- * Imports PKCS#8 PEM string into a CryptoKey for RS256 signing
- */
-async function importPrivateKey(pem) {
-  // Clean PEM delimiters and whitespace
-  const cleanPem = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s+/g, "");
-
-  const binaryString = atob(cleanPem);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  return await crypto.subtle.importKey(
-    "pkcs8",
-    bytes.buffer,
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign"]
-  );
-}
-
-/**
- * Parses Service Account config from environment variables
+ * Parses Service Account config from environment variables (Optional legacy helper)
  */
 export function getServiceAccountConfig(env) {
-  const rawKey = env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const rawKey = env?.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!rawKey) {
     return null;
   }
@@ -71,85 +103,4 @@ export function getServiceAccountConfig(env) {
     console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", err);
     return null;
   }
-}
-
-/**
- * Obtains a valid Google OAuth2 Bearer Access Token using Service Account JWT
- */
-export async function getGoogleOAuth2AccessToken(env) {
-  const now = Math.floor(Date.now() / 1000);
-
-  // Return cached token if valid for at least 5 more minutes
-  if (cachedToken && tokenExpiresAt > now + 300) {
-    return cachedToken;
-  }
-
-  const serviceAccount = getServiceAccountConfig(env);
-  if (!serviceAccount || !serviceAccount.client_email || !serviceAccount.private_key) {
-    throw new Error(
-      "Missing or invalid FIREBASE_SERVICE_ACCOUNT_KEY in Cloudflare environment. " +
-      "Configure it in Cloudflare Pages -> Settings -> Environment Variables."
-    );
-  }
-
-  const header = {
-    alg: "RS256",
-    typ: "JWT"
-  };
-
-  const scopes = [
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/firebase.database",
-    "https://www.googleapis.com/auth/devstorage.full_control",
-    "https://www.googleapis.com/auth/cloud-platform"
-  ].join(" ");
-
-  const claims = {
-    iss: serviceAccount.client_email,
-    scope: scopes,
-    aud: serviceAccount.token_uri || "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now
-  };
-
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedClaims = base64UrlEncode(JSON.stringify(claims));
-  const unsignedToken = `${encodedHeader}.${encodedClaims}`;
-
-  // Sign with RSA-SHA256
-  const cryptoKey = await importPrivateKey(serviceAccount.private_key);
-  const signatureBuffer = await crypto.subtle.sign(
-    { name: "RSASSA-PKCS1-v1_5" },
-    cryptoKey,
-    new TextEncoder().encode(unsignedToken)
-  );
-
-  const encodedSignature = base64UrlEncode(signatureBuffer);
-  const jwtAssertion = `${unsignedToken}.${encodedSignature}`;
-
-  // Exchange JWT for OAuth2 Token
-  const tokenUrl = serviceAccount.token_uri || "https://oauth2.googleapis.com/token";
-  const body = new URLSearchParams({
-    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-    assertion: jwtAssertion
-  });
-
-  const resp = await fetch(tokenUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: body.toString()
-  });
-
-  if (!resp.ok) {
-    const errorText = await resp.text();
-    throw new Error(`Google OAuth2 token exchange failed (HTTP ${resp.status}): ${errorText}`);
-  }
-
-  const tokenData = await resp.json();
-  cachedToken = tokenData.access_token;
-  tokenExpiresAt = now + (tokenData.expires_in || 3600);
-
-  return cachedToken;
 }
